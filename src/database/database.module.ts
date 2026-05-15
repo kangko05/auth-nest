@@ -15,6 +15,7 @@ export class DatabaseModule {
 
   async onApplicationShutdown() {
     const dataSource = this.moduleRef.get<DataSource>(DATA_SOURCE);
+
     if (dataSource.isInitialized) await dataSource.destroy();
   }
 }

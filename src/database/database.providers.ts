@@ -22,4 +22,14 @@ export const databaseProviders = [
       return dataSource.initialize();
     },
   },
+  // {
+  //   provide: REDIS_CLIENT,
+  //   inject: [ConfigService],
+  //   useFactory: (configService: ConfigService) => {
+  //     return new Redis({
+  //       host: configService.get('redis.host'),
+  //       port: configService.get('redis.port'),
+  //     });
+  //   },
+  // },
 ];

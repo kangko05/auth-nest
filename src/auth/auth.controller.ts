@@ -1,12 +1,23 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type { Response, Request } from 'express';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { AuthService } from './auth.service';
-import { LocalAuthGuard } from './auth.guard';
+import { LocalAuthGuard, RefreshGuard } from './auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 
 @Controller('auth')
 export class AuthController {
+  private readonly refreshTokenKey = 'refresh_token';
+
   constructor(private readonly authService: AuthService) {}
 
   // TODO: move this api to users module
@@ -18,7 +29,37 @@ export class AuthController {
   // ==========================================================================
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  login(@CurrentUser() user: User) {
-    return this.authService.login(user);
+  async login(
+    @CurrentUser() user: User,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { access_token, refresh_token } = await this.authService.login(user);
+
+    res.cookie(this.refreshTokenKey, refresh_token, {
+      httpOnly: true,
+      secure: true,
+    });
+
+    return { access_token };
+  }
+
+  @UseGuards(RefreshGuard)
+  @Post('refresh')
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @CurrentUser() user: User,
+  ) {
+    const { access_token, refresh_token } = await this.authService.refresh(
+      user,
+      req.cookies.refresh_token,
+    );
+
+    res.cookie(this.refreshTokenKey, refresh_token, {
+      httpOnly: true,
+      secure: true,
+    });
+
+    return { access_token };
   }
 }

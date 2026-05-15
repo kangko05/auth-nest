@@ -10,12 +10,20 @@ jest.mock('typeorm', () => {
   return { DataSource: jest.fn(() => mockDataSource) };
 });
 
+jest.mock('ioredis', () => {
+  return jest.fn().mockImplementation(() => ({
+    disconnect: jest.fn(),
+  }));
+});
+
 const baseConfig: Record<string, unknown> = {
   'database.host': 'test-host',
   'database.port': 3306,
   'database.username': 'test-user',
   'database.password': 'test-pass',
   'database.database': 'test-db',
+  'redis.host': 'localhost',
+  'redis.port': 6379,
 };
 
 const createModule = (nodeEnv = 'test') => {
