@@ -91,4 +91,29 @@ describe('Auth (e2e)', () => {
         );
       });
   });
+
+  it('POST /auth/login - 정상 로그인', () => {
+    return request(app.getHttpServer())
+      .post('/auth/login')
+      .send(dto)
+      .expect(201)
+      .expect(({ body }) => {
+        expect(body).toHaveProperty('access_token');
+        expect(typeof body.access_token).toBe('string');
+      });
+  });
+
+  it('POST /auth/login - 잘못된 비밀번호', () => {
+    return request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ ...dto, password: 'WrongPass1!' })
+      .expect(401);
+  });
+
+  it('POST /auth/login - 존재하지 않는 이메일', () => {
+    return request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'none@test.com', password: dto.password })
+      .expect(401);
+  });
 });
