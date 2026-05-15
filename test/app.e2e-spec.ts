@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './../src/app.module';
 import { DATA_SOURCE } from '../src/database/constants';
 
@@ -15,6 +16,7 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.use(cookieParser());
     app.useGlobalPipes(new ValidationPipe());
     await app.init();
   });
@@ -43,6 +45,7 @@ describe('Auth (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.use(cookieParser());
     app.useGlobalPipes(new ValidationPipe());
     await app.init();
 
@@ -114,6 +117,36 @@ describe('Auth (e2e)', () => {
     return request(app.getHttpServer())
       .post('/auth/login')
       .send({ email: 'none@test.com', password: dto.password })
+      .expect(401);
+  });
+
+  it('POST /auth/refresh - 정상 갱신', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send(dto);
+
+    const cookies = loginRes.headers['set-cookie'];
+
+    return request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', cookies)
+      .expect(201)
+      .expect(({ body }) => {
+        expect(body).toHaveProperty('access_token');
+        expect(typeof body.access_token).toBe('string');
+      });
+  });
+
+  it('POST /auth/refresh - 쿠키 없으면 401', () => {
+    return request(app.getHttpServer())
+      .post('/auth/refresh')
+      .expect(401);
+  });
+
+  it('POST /auth/refresh - 유효하지 않은 토큰 401', () => {
+    return request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', 'refresh_token=invalid.token.here')
       .expect(401);
   });
 });

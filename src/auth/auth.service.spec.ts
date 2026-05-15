@@ -1,8 +1,10 @@
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Test } from '@nestjs/testing';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { REDIS_CLIENT } from '../redis/constants';
 import * as bcrypt from 'bcrypt';
 
 const mockUserService = {
@@ -14,6 +16,15 @@ const mockJWTService = {
   signAsync: jest.fn().mockResolvedValue('mock.jwt.token'),
 };
 
+const mockConfigService = {
+  get: jest.fn(),
+};
+
+const mockRedisClient = {
+  get: jest.fn(),
+  set: jest.fn(),
+};
+
 describe('AuthService', () => {
   let authService: AuthService;
 
@@ -23,6 +34,8 @@ describe('AuthService', () => {
         AuthService,
         { provide: UsersService, useValue: mockUserService },
         { provide: JwtService, useValue: mockJWTService },
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: REDIS_CLIENT, useValue: mockRedisClient },
       ],
     }).compile();
 
@@ -94,11 +107,93 @@ describe('AuthService', () => {
       updatedAt: new Date(),
     };
 
-    it('JWT access_token 반환', async () => {
+    beforeEach(() => {
+      mockJWTService.signAsync.mockResolvedValue('mock.jwt.token');
+      mockRedisClient.set.mockResolvedValue('OK');
+    });
+
+    it('access_token, refresh_token 반환', async () => {
       const result = await authService.login(user as any);
 
-      expect(mockJWTService.signAsync).toHaveBeenCalledWith({ sub: user.id });
-      expect(result).toHaveProperty('access_token', 'mock.jwt.token');
+      expect(result).toHaveProperty('access_token');
+      expect(result).toHaveProperty('refresh_token');
+    });
+
+    it('signAsync 두 번 호출 (access, refresh)', async () => {
+      await authService.login(user as any);
+
+      expect(mockJWTService.signAsync).toHaveBeenCalledTimes(2);
+    });
+
+    it('Redis에 refresh token 저장', async () => {
+      await authService.login(user as any);
+
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
+        user.id,
+        expect.any(String),
+        'EX',
+        expect.any(Number),
+      );
+    });
+  });
+
+  describe('refresh', () => {
+    const user = {
+      id: 'uuid-1',
+      email: 'test@test.com',
+      password: 'hashed',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const storedToken = 'stored.refresh.token';
+
+    beforeEach(() => {
+      mockJWTService.signAsync.mockResolvedValue('new.jwt.token');
+      mockRedisClient.set.mockResolvedValue('OK');
+    });
+
+    it('정상 갱신 - 새 토큰 반환', async () => {
+      mockRedisClient.get.mockResolvedValue(storedToken);
+
+      const result = await authService.refresh(user as any, storedToken);
+
+      expect(result).toHaveProperty('access_token');
+      expect(result).toHaveProperty('refresh_token');
+    });
+
+    it('Redis에 새 refresh token 저장', async () => {
+      mockRedisClient.get.mockResolvedValue(storedToken);
+
+      await authService.refresh(user as any, storedToken);
+
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
+        user.id,
+        expect.any(String),
+        'EX',
+        expect.any(Number),
+      );
+    });
+
+    it('Redis에 토큰 없으면 UnauthorizedException', async () => {
+      mockRedisClient.get.mockResolvedValue(null);
+
+      await expect(
+        authService.refresh(user as any, storedToken),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('토큰 불일치 시 UnauthorizedException', async () => {
+      mockRedisClient.get.mockResolvedValue('different.token');
+
+      await expect(
+        authService.refresh(user as any, storedToken),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('refreshToken null이면 BadRequestException', async () => {
+      await expect(
+        authService.refresh(user as any, null),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

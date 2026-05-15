@@ -1,13 +1,16 @@
 import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
+
+import { UsersModule } from '../users/users.module';
+import { RedisModule } from '../redis/redis.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { UsersModule } from '../users/users.module';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { LocalStrategy } from './strategy/local.strategy';
-import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategy/jwt.strategy';
-import { JwtAuthGuard, LocalAuthGuard } from './auth.guard';
+import { JwtAuthGuard, LocalAuthGuard, RefreshGuard } from './auth.guard';
+import { RefreshStrategy } from './strategy/refresh.strategy';
 
 @Module({
   imports: [
@@ -21,6 +24,7 @@ import { JwtAuthGuard, LocalAuthGuard } from './auth.guard';
       }),
     }),
     PassportModule,
+    RedisModule,
   ],
   controllers: [AuthController],
   providers: [
@@ -29,6 +33,8 @@ import { JwtAuthGuard, LocalAuthGuard } from './auth.guard';
     JwtStrategy,
     LocalAuthGuard,
     JwtAuthGuard,
+    RefreshStrategy,
+    RefreshGuard,
   ],
   exports: [JwtAuthGuard],
 })
