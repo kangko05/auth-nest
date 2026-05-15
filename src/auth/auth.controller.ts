@@ -31,9 +31,15 @@ export class AuthController {
   @Post('login')
   async login(
     @CurrentUser() user: User,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { access_token, refresh_token } = await this.authService.login(user);
+    const userAgent = req.headers['user-agent'];
+    const { access_token, refresh_token } = await this.authService.login(
+      user,
+      req.ip,
+      userAgent,
+    );
 
     res.cookie(this.refreshTokenKey, refresh_token, {
       httpOnly: true,
@@ -50,9 +56,12 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @CurrentUser() user: User,
   ) {
+    const userAgent = req.headers['user-agent'];
     const { access_token, refresh_token } = await this.authService.refresh(
       user,
       req.cookies.refresh_token,
+      userAgent,
+      req.ip,
     );
 
     res.cookie(this.refreshTokenKey, refresh_token, {
@@ -68,9 +77,10 @@ export class AuthController {
   @Delete('logout')
   async logout(
     @CurrentUser() user: User,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     res.clearCookie(this.refreshTokenKey);
-    await this.authService.logout(user);
+    await this.authService.logout(user, req.headers['user-agent']);
   }
 }

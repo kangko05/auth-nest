@@ -95,9 +95,12 @@ describe('Auth (e2e)', () => {
       });
   });
 
+  const testAgent = 'Mozilla/5.0 (Test)';
+
   it('POST /auth/login - 정상 로그인', () => {
     return request(app.getHttpServer())
       .post('/auth/login')
+      .set('User-Agent', testAgent)
       .send(dto)
       .expect(201)
       .expect(({ body }) => {
@@ -109,6 +112,7 @@ describe('Auth (e2e)', () => {
   it('POST /auth/login - 잘못된 비밀번호', () => {
     return request(app.getHttpServer())
       .post('/auth/login')
+      .set('User-Agent', testAgent)
       .send({ ...dto, password: 'WrongPass1!' })
       .expect(401);
   });
@@ -116,6 +120,7 @@ describe('Auth (e2e)', () => {
   it('POST /auth/login - 존재하지 않는 이메일', () => {
     return request(app.getHttpServer())
       .post('/auth/login')
+      .set('User-Agent', testAgent)
       .send({ email: 'none@test.com', password: dto.password })
       .expect(401);
   });
@@ -123,12 +128,14 @@ describe('Auth (e2e)', () => {
   it('POST /auth/refresh - 정상 갱신', async () => {
     const loginRes = await request(app.getHttpServer())
       .post('/auth/login')
+      .set('User-Agent', testAgent)
       .send(dto);
 
     const cookies = loginRes.headers['set-cookie'];
 
     return request(app.getHttpServer())
       .post('/auth/refresh')
+      .set('User-Agent', testAgent)
       .set('Cookie', cookies)
       .expect(201)
       .expect(({ body }) => {
@@ -140,12 +147,14 @@ describe('Auth (e2e)', () => {
   it('POST /auth/refresh - 쿠키 없으면 401', () => {
     return request(app.getHttpServer())
       .post('/auth/refresh')
+      .set('User-Agent', testAgent)
       .expect(401);
   });
 
   it('POST /auth/refresh - 유효하지 않은 토큰 401', () => {
     return request(app.getHttpServer())
       .post('/auth/refresh')
+      .set('User-Agent', testAgent)
       .set('Cookie', 'refresh_token=invalid.token.here')
       .expect(401);
   });
@@ -153,19 +162,19 @@ describe('Auth (e2e)', () => {
   it('DELETE /auth/logout - 정상 로그아웃', async () => {
     const loginRes = await request(app.getHttpServer())
       .post('/auth/login')
+      .set('User-Agent', testAgent)
       .send(dto);
 
     const accessToken = loginRes.body.access_token;
 
     return request(app.getHttpServer())
       .delete('/auth/logout')
+      .set('User-Agent', testAgent)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(204);
   });
 
   it('DELETE /auth/logout - 토큰 없으면 401', () => {
-    return request(app.getHttpServer())
-      .delete('/auth/logout')
-      .expect(401);
+    return request(app.getHttpServer()).delete('/auth/logout').expect(401);
   });
 });
