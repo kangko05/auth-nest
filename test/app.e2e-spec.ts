@@ -4,6 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 import { AppModule } from './../src/app.module';
+import { DATA_SOURCE } from '../src/database/constants';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -45,7 +46,7 @@ describe('Auth (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe());
     await app.init();
 
-    dataSource = app.get<DataSource>('DATA_SOURCE');
+    dataSource = app.get<DataSource>(DATA_SOURCE);
   });
 
   afterAll(async () => {
@@ -85,7 +86,9 @@ describe('Auth (e2e)', () => {
       .send({ email: 'e2e2@test.com', password: '1234' })
       .expect(400)
       .expect(({ body }) => {
-        expect(body.message).toContain('비밀번호는 8자 이상, 대소문자, 숫자, 특수문자를 포함해야 합니다.');
+        expect(body.message).toContain(
+          '비밀번호는 8자 이상, 대소문자, 숫자, 특수문자를 포함해야 합니다.',
+        );
       });
   });
 });

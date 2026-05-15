@@ -1,9 +1,10 @@
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
+import { DATA_SOURCE } from './constants';
 
 export const databaseProviders = [
   {
-    provide: 'DATA_SOURCE',
+    provide: DATA_SOURCE,
     inject: [ConfigService],
     useFactory: async (configService: ConfigService) => {
       const nodeEnv = configService.get('NODE_ENV');

@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
+import { USER_REPOSITORY } from './constants';
 
 const mockUser: User = {
   id: 'uuid-1',
@@ -23,7 +24,7 @@ describe('UsersService', () => {
     const module = await Test.createTestingModule({
       providers: [
         UsersService,
-        { provide: 'USER_REPOSITORY', useValue: mockUserRepository },
+        { provide: USER_REPOSITORY, useValue: mockUserRepository },
       ],
     }).compile();
 
