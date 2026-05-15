@@ -1,9 +1,7 @@
 import * as bcrypt from 'bcrypt';
-import ms from 'ms';
 import {
   BadRequestException,
   ConflictException,
-  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -13,8 +11,7 @@ import { UserCreatedDto } from '../users/dto/user-response.dto';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
-import { REDIS_CLIENT } from '../redis/constants';
-import Redis from 'ioredis';
+import { SessionService } from '../session/session.service';
 
 @Injectable()
 export class AuthService {
@@ -22,7 +19,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly userService: UsersService,
     private readonly jwtService: JwtService,
-    @Inject(REDIS_CLIENT) private readonly redisClient: Redis,
+    private readonly sessionService: SessionService,
   ) {}
 
   async register(registerDto: CreateUserDto): Promise<UserCreatedDto> {
@@ -53,40 +50,56 @@ export class AuthService {
 
   async login(
     user: User,
+    userIp?: string,
+    userAgent?: string,
   ): Promise<{ access_token: string; refresh_token: string }> {
+    if (!userAgent || !userIp) throw new UnauthorizedException();
+
     const tokenPair = await this.issueTokenPair(user);
 
-    await this.redisClient.set(
-      user.id,
+    await this.sessionService.createSession(
+      user,
+      userAgent,
       tokenPair.refresh_token,
-      'PX',
-      ms(this.configService.get('jwt.refreshExpiresIn') as ms.StringValue),
+      userIp,
     );
 
     return tokenPair;
   }
 
-  async refresh(user: User, refreshToken: string | null) {
+  async refresh(
+    user: User,
+    refreshToken: string | null,
+    userAgent?: string,
+    userIp?: string,
+  ) {
     if (!refreshToken) throw new BadRequestException();
+    if (!userAgent || !userIp) throw new UnauthorizedException();
 
-    const stored = await this.redisClient.get(user.id);
+    const storedSession = await this.sessionService.findSession(
+      user,
+      userAgent,
+    );
 
-    if (!stored || stored !== refreshToken) throw new UnauthorizedException();
+    if (!storedSession || refreshToken !== storedSession.refreshToken)
+      throw new UnauthorizedException();
 
     const newTokenPair = await this.issueTokenPair(user);
 
-    await this.redisClient.set(
-      user.id,
+    await this.sessionService.createSession(
+      user,
+      userAgent,
       newTokenPair.refresh_token,
-      'PX',
-      ms(this.configService.get('jwt.refreshExpiresIn') as ms.StringValue),
+      userIp,
     );
 
     return newTokenPair;
   }
 
-  async logout(user: User) {
-    await this.redisClient.del(user.id);
+  async logout(user: User, userAgent?: string) {
+    if (!userAgent) throw new UnauthorizedException();
+
+    await this.sessionService.deleteSession(user, userAgent);
   }
 
   private async issueTokenPair(user: User): Promise<{
