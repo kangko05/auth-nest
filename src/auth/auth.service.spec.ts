@@ -17,7 +17,13 @@ const mockJWTService = {
 };
 
 const mockConfigService = {
-  get: jest.fn(),
+  get: jest.fn((key: string) => {
+    const config: Record<string, string> = {
+      'jwt.refreshExpiresIn': '7d',
+      'jwt.refreshSecret': 'test-refresh-secret',
+    };
+    return config[key];
+  }),
 };
 
 const mockRedisClient = {
@@ -131,7 +137,7 @@ describe('AuthService', () => {
       expect(mockRedisClient.set).toHaveBeenCalledWith(
         user.id,
         expect.any(String),
-        'EX',
+        'PX',
         expect.any(Number),
       );
     });
@@ -169,7 +175,7 @@ describe('AuthService', () => {
       expect(mockRedisClient.set).toHaveBeenCalledWith(
         user.id,
         expect.any(String),
-        'EX',
+        'PX',
         expect.any(Number),
       );
     });

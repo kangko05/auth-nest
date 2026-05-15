@@ -21,7 +21,6 @@ export class AuthController {
 
   constructor(private readonly authService: AuthService) {}
 
-  // TODO: move this api to users module
   @Post('register')
   register(@Body() registerDto: CreateUserDto) {
     return this.authService.register(registerDto);
@@ -38,7 +37,7 @@ export class AuthController {
 
     res.cookie(this.refreshTokenKey, refresh_token, {
       httpOnly: true,
-      secure: true,
+      secure: false, // WARN: if this route is exposed to outer network, change this value to true
     });
 
     return { access_token };
@@ -58,7 +57,7 @@ export class AuthController {
 
     res.cookie(this.refreshTokenKey, refresh_token, {
       httpOnly: true,
-      secure: true,
+      secure: false, // WARN: if this route is exposed to outer network, change this value to true
     });
 
     return { access_token };
