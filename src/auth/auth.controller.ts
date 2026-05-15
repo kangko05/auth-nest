@@ -43,7 +43,8 @@ export class AuthController {
 
     res.cookie(this.refreshTokenKey, refresh_token, {
       httpOnly: true,
-      secure: false, // WARN: if this route is exposed to outer network, change this value to true
+      sameSite: 'lax',
+      secure: false, // WARN: this one only works under HTTPS, if this route is exposed to outer network, change this value to true
     });
 
     return { access_token };
@@ -66,6 +67,7 @@ export class AuthController {
 
     res.cookie(this.refreshTokenKey, refresh_token, {
       httpOnly: true,
+      sameSite: 'lax',
       secure: false, // WARN: if this route is exposed to outer network, change this value to true
     });
 
@@ -81,6 +83,10 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     res.clearCookie(this.refreshTokenKey);
-    await this.authService.logout(user, req.headers['user-agent']);
+    await this.authService.logout(
+      user,
+      req.headers.authorization,
+      req.headers['user-agent'],
+    );
   }
 }

@@ -5,13 +5,14 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
 import { UserCreatedDto } from '../users/dto/user-response.dto';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
-import { SessionService } from '../session/session.service';
+import { SessionService, Session } from '../session/session.service';
 
 @Injectable()
 export class AuthService {
@@ -81,8 +82,10 @@ export class AuthService {
       userAgent,
     );
 
-    if (!storedSession || refreshToken !== storedSession.refreshToken)
+    if (!this.isSessionValid(storedSession, refreshToken, userIp)) {
+      await this.sessionService.deleteSession(user, userAgent);
       throw new UnauthorizedException();
+    }
 
     const newTokenPair = await this.issueTokenPair(user);
 
@@ -96,8 +99,32 @@ export class AuthService {
     return newTokenPair;
   }
 
-  async logout(user: User, userAgent?: string) {
-    if (!userAgent) throw new UnauthorizedException();
+  private isSessionValid(
+    storedSession: Session | null,
+    refreshToken: string,
+    userIp: string,
+  ) {
+    if (storedSession == null) return false;
+
+    const refreshTokenMatch = refreshToken === storedSession.refreshToken;
+    const requestIpMatch = userIp === storedSession.ip;
+
+    return refreshTokenMatch && requestIpMatch;
+  }
+
+  async logout(user: User, accessToken?: string, userAgent?: string) {
+    if (!userAgent) {
+      await this.sessionService.deleteAllUserSessions(user);
+      return;
+    }
+
+    if (accessToken) {
+      const token = accessToken.split(' ')[1];
+      const payload = this.jwtService.decode(token) as { exp: number };
+      const remainingTime = payload.exp * 1000 - Date.now(); // ms
+
+      await this.sessionService.blacklistToken(token, remainingTime);
+    }
 
     await this.sessionService.deleteSession(user, userAgent);
   }
@@ -107,12 +134,18 @@ export class AuthService {
     refresh_token: string;
   }> {
     const tokenPair = await Promise.all([
-      this.jwtService.signAsync({ sub: user.id }),
       this.jwtService.signAsync(
-        { sub: user.id },
+        { jti: randomUUID(), sub: user.id },
+        {
+          algorithm: 'HS256',
+        },
+      ),
+      this.jwtService.signAsync(
+        { jti: randomUUID(), sub: user.id },
         {
           secret: this.configService.get('jwt.refreshSecret'),
           expiresIn: this.configService.get('jwt.refreshExpiresIn'),
+          algorithm: 'HS256',
         },
       ),
     ]);

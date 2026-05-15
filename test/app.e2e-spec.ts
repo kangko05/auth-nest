@@ -177,4 +177,61 @@ describe('Auth (e2e)', () => {
   it('DELETE /auth/logout - 토큰 없으면 401', () => {
     return request(app.getHttpServer()).delete('/auth/logout').expect(401);
   });
+
+  it('DELETE /auth/logout - UA 없이 로그아웃 시 204', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('User-Agent', testAgent)
+      .send(dto);
+
+    const accessToken = loginRes.body.access_token;
+
+    return request(app.getHttpServer())
+      .delete('/auth/logout')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(204);
+  });
+
+  it('DELETE /auth/logout - 로그아웃 후 동일 access token 사용 시 401', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('User-Agent', testAgent)
+      .send(dto);
+
+    const accessToken = loginRes.body.access_token;
+
+    await request(app.getHttpServer())
+      .delete('/auth/logout')
+      .set('User-Agent', testAgent)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(204);
+
+    return request(app.getHttpServer())
+      .delete('/auth/logout')
+      .set('User-Agent', testAgent)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(401);
+  });
+
+  it('DELETE /auth/logout - 로그아웃 후 refresh 시도 시 401', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('User-Agent', testAgent)
+      .send(dto);
+
+    const accessToken = loginRes.body.access_token;
+    const cookies = loginRes.headers['set-cookie'];
+
+    await request(app.getHttpServer())
+      .delete('/auth/logout')
+      .set('User-Agent', testAgent)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(204);
+
+    return request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('User-Agent', testAgent)
+      .set('Cookie', cookies)
+      .expect(401);
+  });
 });

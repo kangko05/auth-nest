@@ -14,6 +14,7 @@ const mockUserService = {
 
 const mockJWTService = {
   signAsync: jest.fn().mockResolvedValue('mock.jwt.token'),
+  decode: jest.fn(),
 };
 
 const mockConfigService = {
@@ -30,6 +31,9 @@ const mockSessionService = {
   createSession: jest.fn(),
   findSession: jest.fn(),
   deleteSession: jest.fn(),
+  deleteAllUserSessions: jest.fn(),
+  blacklistToken: jest.fn(),
+  isBlacklisted: jest.fn(),
 };
 
 const user = {
@@ -164,7 +168,7 @@ describe('AuthService', () => {
     });
 
     it('정상 갱신 - 새 토큰 반환', async () => {
-      mockSessionService.findSession.mockResolvedValue({ refreshToken: storedToken });
+      mockSessionService.findSession.mockResolvedValue({ refreshToken: storedToken, ip: '127.0.0.1' });
 
       const result = await authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1');
 
@@ -202,18 +206,31 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('세션 삭제 호출', async () => {
+    beforeEach(() => {
       mockSessionService.deleteSession.mockResolvedValue(undefined);
+      mockSessionService.deleteAllUserSessions.mockResolvedValue(undefined);
+      mockSessionService.blacklistToken.mockResolvedValue(undefined);
+    });
 
-      await authService.logout(user as any, 'Mozilla/5.0');
+    it('정상 로그아웃 - 세션 삭제 호출', async () => {
+      await authService.logout(user as any, undefined, 'Mozilla/5.0');
 
       expect(mockSessionService.deleteSession).toHaveBeenCalledWith(user, 'Mozilla/5.0');
     });
 
-    it('UA 없으면 UnauthorizedException', async () => {
-      await expect(
-        authService.logout(user as any, undefined),
-      ).rejects.toThrow(UnauthorizedException);
+    it('access token 있으면 블랙리스트 등록', async () => {
+      const fakeToken = 'Bearer mock.access.token';
+      mockJWTService.decode.mockReturnValue({ exp: Math.floor(Date.now() / 1000) + 3600 });
+
+      await authService.logout(user as any, fakeToken, 'Mozilla/5.0');
+
+      expect(mockSessionService.blacklistToken).toHaveBeenCalled();
+    });
+
+    it('UA 없으면 전체 세션 삭제', async () => {
+      await authService.logout(user as any, undefined, undefined);
+
+      expect(mockSessionService.deleteAllUserSessions).toHaveBeenCalledWith(user);
     });
   });
 
