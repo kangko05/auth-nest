@@ -2,10 +2,15 @@ import { ConflictException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Test } from '@nestjs/testing';
 import { UsersService } from '../users/users.service';
+import { JwtService } from '@nestjs/jwt';
 
 const mockUserService = {
   findByEmail: jest.fn(),
   create: jest.fn(),
+};
+
+const mockJWTService = {
+  signAsync: jest.fn().mockResolvedValue('mock.jwt.token'),
 };
 
 describe('AuthService', () => {
@@ -16,6 +21,7 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: UsersService, useValue: mockUserService },
+        { provide: JwtService, useValue: mockJWTService },
       ],
     }).compile();
 
