@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
-import { DATA_SOURCE } from './constants';
+import { DATA_SOURCE, REDIS_CLIENT } from './constants';
+import Redis from 'ioredis';
 
 export const databaseProviders = [
   {
@@ -20,6 +21,16 @@ export const databaseProviders = [
       });
 
       return dataSource.initialize();
+    },
+  },
+  {
+    provide: REDIS_CLIENT,
+    inject: [ConfigService],
+    useFactory: (configService: ConfigService) => {
+      return new Redis({
+        host: configService.get('redis.host'),
+        port: configService.get('redis.port'),
+      });
     },
   },
 ];
