@@ -1,16 +1,17 @@
 import {
-  BadRequestException,
+  Delete,
   Body,
   Controller,
   Post,
   Req,
   Res,
   UseGuards,
+  HttpCode,
 } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { AuthService } from './auth.service';
-import { LocalAuthGuard, RefreshGuard } from './auth.guard';
+import { JwtAuthGuard, LocalAuthGuard, RefreshGuard } from './auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 
@@ -20,7 +21,6 @@ export class AuthController {
 
   constructor(private readonly authService: AuthService) {}
 
-  // TODO: move this api to users module
   @Post('register')
   register(@Body() registerDto: CreateUserDto) {
     return this.authService.register(registerDto);
@@ -37,7 +37,7 @@ export class AuthController {
 
     res.cookie(this.refreshTokenKey, refresh_token, {
       httpOnly: true,
-      secure: true,
+      secure: false, // WARN: if this route is exposed to outer network, change this value to true
     });
 
     return { access_token };
@@ -57,9 +57,20 @@ export class AuthController {
 
     res.cookie(this.refreshTokenKey, refresh_token, {
       httpOnly: true,
-      secure: true,
+      secure: false, // WARN: if this route is exposed to outer network, change this value to true
     });
 
     return { access_token };
+  }
+
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  @Delete('logout')
+  async logout(
+    @CurrentUser() user: User,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    res.clearCookie(this.refreshTokenKey);
+    await this.authService.logout(user);
   }
 }

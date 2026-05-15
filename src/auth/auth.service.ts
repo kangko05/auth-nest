@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcrypt';
+import ms from 'ms';
 import {
   BadRequestException,
   ConflictException,
@@ -55,15 +56,18 @@ export class AuthService {
   ): Promise<{ access_token: string; refresh_token: string }> {
     const tokenPair = await this.issueTokenPair(user);
 
-    await this.redisClient.set(user.id, tokenPair.refresh_token, 'EX', 604800);
+    await this.redisClient.set(
+      user.id,
+      tokenPair.refresh_token,
+      'PX',
+      ms(this.configService.get('jwt.refreshExpiresIn') as ms.StringValue),
+    );
 
     return tokenPair;
   }
 
   async refresh(user: User, refreshToken: string | null) {
     if (!refreshToken) throw new BadRequestException();
-
-    // get refresh token from redis -> delete & make new one
 
     const stored = await this.redisClient.get(user.id);
 
@@ -74,11 +78,15 @@ export class AuthService {
     await this.redisClient.set(
       user.id,
       newTokenPair.refresh_token,
-      'EX',
-      604800,
-    ); // TODO: get expir time from config
+      'PX',
+      ms(this.configService.get('jwt.refreshExpiresIn') as ms.StringValue),
+    );
 
     return newTokenPair;
+  }
+
+  async logout(user: User) {
+    await this.redisClient.del(user.id);
   }
 
   private async issueTokenPair(user: User): Promise<{

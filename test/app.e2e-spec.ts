@@ -149,4 +149,23 @@ describe('Auth (e2e)', () => {
       .set('Cookie', 'refresh_token=invalid.token.here')
       .expect(401);
   });
+
+  it('DELETE /auth/logout - 정상 로그아웃', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send(dto);
+
+    const accessToken = loginRes.body.access_token;
+
+    return request(app.getHttpServer())
+      .delete('/auth/logout')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(204);
+  });
+
+  it('DELETE /auth/logout - 토큰 없으면 401', () => {
+    return request(app.getHttpServer())
+      .delete('/auth/logout')
+      .expect(401);
+  });
 });

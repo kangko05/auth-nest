@@ -17,7 +17,13 @@ const mockJWTService = {
 };
 
 const mockConfigService = {
-  get: jest.fn(),
+  get: jest.fn((key: string) => {
+    const config: Record<string, string> = {
+      'jwt.refreshExpiresIn': '7d',
+      'jwt.refreshSecret': 'test-refresh-secret',
+    };
+    return config[key];
+  }),
 };
 
 const mockRedisClient = {
@@ -131,7 +137,7 @@ describe('AuthService', () => {
       expect(mockRedisClient.set).toHaveBeenCalledWith(
         user.id,
         expect.any(String),
-        'EX',
+        'PX',
         expect.any(Number),
       );
     });
@@ -169,7 +175,7 @@ describe('AuthService', () => {
       expect(mockRedisClient.set).toHaveBeenCalledWith(
         user.id,
         expect.any(String),
-        'EX',
+        'PX',
         expect.any(Number),
       );
     });
@@ -194,6 +200,24 @@ describe('AuthService', () => {
       await expect(
         authService.refresh(user as any, null),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('logout', () => {
+    const user = {
+      id: 'uuid-1',
+      email: 'test@test.com',
+      password: 'hashed',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('Redis에서 refresh token 삭제', async () => {
+      mockRedisClient.del = jest.fn().mockResolvedValue(1);
+
+      await authService.logout(user as any);
+
+      expect(mockRedisClient.del).toHaveBeenCalledWith(user.id);
     });
   });
 
