@@ -83,6 +83,10 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     res.clearCookie(this.refreshTokenKey);
-    await this.authService.logout(user, req.headers['user-agent']);
+    await this.authService.logout(
+      user,
+      req.headers.authorization,
+      req.headers['user-agent'],
+    );
   }
 }

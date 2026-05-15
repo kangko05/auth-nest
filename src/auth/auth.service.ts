@@ -5,6 +5,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
 import { UserCreatedDto } from '../users/dto/user-response.dto';
@@ -111,8 +112,19 @@ export class AuthService {
     return refreshTokenMatch && requestIpMatch;
   }
 
-  async logout(user: User, userAgent?: string) {
-    if (!userAgent) throw new UnauthorizedException();
+  async logout(user: User, accessToken?: string, userAgent?: string) {
+    if (!userAgent) {
+      await this.sessionService.deleteAllUserSessions(user);
+      return;
+    }
+
+    if (accessToken) {
+      const token = accessToken.split(' ')[1];
+      const payload = this.jwtService.decode(token) as { exp: number };
+      const remainingTime = payload.exp * 1000 - Date.now(); // ms
+
+      await this.sessionService.blacklistToken(token, remainingTime);
+    }
 
     await this.sessionService.deleteSession(user, userAgent);
   }
@@ -123,13 +135,13 @@ export class AuthService {
   }> {
     const tokenPair = await Promise.all([
       this.jwtService.signAsync(
-        { sub: user.id },
+        { jti: randomUUID(), sub: user.id },
         {
           algorithm: 'HS256',
         },
       ),
       this.jwtService.signAsync(
-        { sub: user.id },
+        { jti: randomUUID(), sub: user.id },
         {
           secret: this.configService.get('jwt.refreshSecret'),
           expiresIn: this.configService.get('jwt.refreshExpiresIn'),

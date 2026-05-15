@@ -16,6 +16,8 @@ export interface Session {
 
 @Injectable()
 export class SessionService {
+  private readonly blackListKey = 'blacklist';
+
   constructor(
     private readonly configService: ConfigService,
     @Inject(REDIS_CLIENT) private readonly redisClient: Redis,
@@ -61,9 +63,35 @@ export class SessionService {
     await this.redisClient.del(sessionId);
   }
 
+  async deleteAllUserSessions(user: User) {
+    const stream = this.redisClient.scanStream({ match: `${user.id}:*` });
+    const keys: string[] = [];
+
+    for await (const batch of stream) {
+      keys.push(...batch);
+    }
+
+    if (keys.length > 0) await this.redisClient.del(...keys);
+  }
+
   private getSessionId(userId: string, userAgent: string): string {
     const hashKey = `${userId}:${userAgent}`;
     const sessionIdPart = createHash('sha256').update(hashKey).digest('hex');
     return `${userId}:${sessionIdPart}`;
+  }
+
+  async blacklistToken(tokenString: string, remainingMs: number) {
+    await this.redisClient.set(
+      `${this.blackListKey}:${tokenString}`,
+      '1',
+      'PX',
+      remainingMs,
+    );
+  }
+
+  async isBlacklisted(token: string): Promise<boolean> {
+    return (
+      (await this.redisClient.get(`${this.blackListKey}:${token}`)) != null
+    );
   }
 }
