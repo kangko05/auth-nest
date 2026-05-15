@@ -12,6 +12,7 @@ export class RefreshStrategy extends PassportStrategy(Strategy, 'refresh') {
       ]),
       ignoreExpiration: false,
       secretOrKey: configService.get('jwt.refreshSecret') as string,
+      algorithms: ['HS256'],
     });
   }
 
