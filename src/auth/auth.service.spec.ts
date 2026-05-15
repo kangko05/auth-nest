@@ -197,6 +197,24 @@ describe('AuthService', () => {
     });
   });
 
+  describe('logout', () => {
+    const user = {
+      id: 'uuid-1',
+      email: 'test@test.com',
+      password: 'hashed',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('Redis에서 refresh token 삭제', async () => {
+      mockRedisClient.del = jest.fn().mockResolvedValue(1);
+
+      await authService.logout(user as any);
+
+      expect(mockRedisClient.del).toHaveBeenCalledWith(user.id);
+    });
+  });
+
   describe('validateUser', () => {
     it('비밀번호 일치 시 유저 반환', async () => {
       const hashedPassword = await bcrypt.hash(userDto.password, 12);

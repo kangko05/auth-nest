@@ -81,6 +81,10 @@ export class AuthService {
     return newTokenPair;
   }
 
+  async logout(user: User) {
+    await this.redisClient.del(user.id);
+  }
+
   private async issueTokenPair(user: User): Promise<{
     access_token: string;
     refresh_token: string;
