@@ -1,7 +1,7 @@
 import { ConflictException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Test } from '@nestjs/testing';
-import { UsersService } from 'src/users/users.service';
+import { UsersService } from '../users/users.service';
 
 const mockUserService = {
   findByEmail: jest.fn(),
@@ -24,11 +24,16 @@ describe('AuthService', () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  const userDto = { email: 'test@test.com', password: 'test1234!' };
+  const userDto = { email: 'test@test.com', password: 'Test1234!' };
+  const createdUser = {
+    email: userDto.email,
+    createdAt: new Date(),
+    password: 'hashed',
+  };
 
   it('정상 가입', async () => {
     mockUserService.findByEmail.mockResolvedValue(null);
-    mockUserService.create.mockResolvedValue({});
+    mockUserService.create.mockResolvedValue(createdUser);
 
     await authService.register(userDto);
 
@@ -36,7 +41,7 @@ describe('AuthService', () => {
   });
 
   it('중복 아이디', async () => {
-    mockUserService.findByEmail.mockResolvedValue(userDto);
+    mockUserService.findByEmail.mockResolvedValue(createdUser);
 
     await expect(authService.register(userDto)).rejects.toThrow(
       ConflictException,
@@ -45,12 +50,31 @@ describe('AuthService', () => {
 
   it('비밀번호 해시되어 저장', async () => {
     mockUserService.findByEmail.mockResolvedValue(null);
-    mockUserService.create.mockResolvedValue({ id: '1' });
+    mockUserService.create.mockResolvedValue(createdUser);
 
     await authService.register(userDto);
 
     const calledWith = mockUserService.create.mock.calls[0][0];
 
     expect(calledWith.password).not.toBe(userDto.password);
+  });
+
+  it('응답에 password 미포함', async () => {
+    mockUserService.findByEmail.mockResolvedValue(null);
+    mockUserService.create.mockResolvedValue(createdUser);
+
+    const result = await authService.register(userDto);
+
+    expect(result).not.toHaveProperty('password');
+  });
+
+  it('응답에 email, createdAt 포함', async () => {
+    mockUserService.findByEmail.mockResolvedValue(null);
+    mockUserService.create.mockResolvedValue(createdUser);
+
+    const result = await authService.register(userDto);
+
+    expect(result).toHaveProperty('email', userDto.email);
+    expect(result).toHaveProperty('createdAt');
   });
 });
