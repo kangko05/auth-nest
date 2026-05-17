@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { SessionService } from '../session/session.service';
+import { AccountService } from '../account/account.service';
 import * as bcrypt from 'bcrypt';
 
 const mockUserService = {
@@ -27,7 +27,7 @@ const mockConfigService = {
   }),
 };
 
-const mockSessionService = {
+const mockAccountService = {
   createSession: jest.fn(),
   findSession: jest.fn(),
   deleteSession: jest.fn(),
@@ -64,7 +64,7 @@ describe('AuthService', () => {
         { provide: UsersService, useValue: mockUserService },
         { provide: JwtService, useValue: mockJWTService },
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: SessionService, useValue: mockSessionService },
+        { provide: AccountService, useValue: mockAccountService },
       ],
     }).compile();
 
@@ -122,7 +122,7 @@ describe('AuthService', () => {
   describe('login', () => {
     beforeEach(() => {
       mockJWTService.signAsync.mockResolvedValue('mock.jwt.token');
-      mockSessionService.createSession.mockResolvedValue(undefined);
+      mockAccountService.createSession.mockResolvedValue(undefined);
     });
 
     it('access_token, refresh_token 반환', async () => {
@@ -141,7 +141,7 @@ describe('AuthService', () => {
     it('세션 생성 호출', async () => {
       await authService.login(user as any, '127.0.0.1', 'Mozilla/5.0');
 
-      expect(mockSessionService.createSession).toHaveBeenCalledWith(
+      expect(mockAccountService.createSession).toHaveBeenCalledWith(
         user,
         'Mozilla/5.0',
         expect.any(String),
@@ -167,11 +167,11 @@ describe('AuthService', () => {
 
     beforeEach(() => {
       mockJWTService.signAsync.mockResolvedValue('new.jwt.token');
-      mockSessionService.createSession.mockResolvedValue(undefined);
+      mockAccountService.createSession.mockResolvedValue(undefined);
     });
 
     it('정상 갱신 - 새 토큰 반환', async () => {
-      mockSessionService.findSession.mockResolvedValue({ refreshToken: storedToken, ip: '127.0.0.1' });
+      mockAccountService.findSession.mockResolvedValue({ refreshToken: storedToken, ip: '127.0.0.1' });
 
       const result = await authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1');
 
@@ -180,7 +180,7 @@ describe('AuthService', () => {
     });
 
     it('세션 없으면 UnauthorizedException', async () => {
-      mockSessionService.findSession.mockResolvedValue(null);
+      mockAccountService.findSession.mockResolvedValue(null);
 
       await expect(
         authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1'),
@@ -188,7 +188,7 @@ describe('AuthService', () => {
     });
 
     it('토큰 불일치 시 UnauthorizedException', async () => {
-      mockSessionService.findSession.mockResolvedValue({ refreshToken: 'different.token' });
+      mockAccountService.findSession.mockResolvedValue({ refreshToken: 'different.token' });
 
       await expect(
         authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1'),
@@ -208,27 +208,27 @@ describe('AuthService', () => {
     });
 
     it('IP 불일치 시 UnauthorizedException + 세션 삭제', async () => {
-      mockSessionService.findSession.mockResolvedValue({ refreshToken: storedToken, ip: '192.168.1.1' });
+      mockAccountService.findSession.mockResolvedValue({ refreshToken: storedToken, ip: '192.168.1.1' });
 
       await expect(
         authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1'),
       ).rejects.toThrow(UnauthorizedException);
 
-      expect(mockSessionService.deleteSession).toHaveBeenCalledWith(user, 'Mozilla/5.0');
+      expect(mockAccountService.deleteSession).toHaveBeenCalledWith(user, 'Mozilla/5.0');
     });
   });
 
   describe('logout', () => {
     beforeEach(() => {
-      mockSessionService.deleteSession.mockResolvedValue(undefined);
-      mockSessionService.deleteAllUserSessions.mockResolvedValue(undefined);
-      mockSessionService.blacklistToken.mockResolvedValue(undefined);
+      mockAccountService.deleteSession.mockResolvedValue(undefined);
+      mockAccountService.deleteAllUserSessions.mockResolvedValue(undefined);
+      mockAccountService.blacklistToken.mockResolvedValue(undefined);
     });
 
     it('정상 로그아웃 - 세션 삭제 호출', async () => {
       await authService.logout(user as any, undefined, 'Mozilla/5.0');
 
-      expect(mockSessionService.deleteSession).toHaveBeenCalledWith(user, 'Mozilla/5.0');
+      expect(mockAccountService.deleteSession).toHaveBeenCalledWith(user, 'Mozilla/5.0');
     });
 
     it('access token 있으면 블랙리스트 등록', async () => {
@@ -237,21 +237,21 @@ describe('AuthService', () => {
 
       await authService.logout(user as any, fakeToken, 'Mozilla/5.0');
 
-      expect(mockSessionService.blacklistToken).toHaveBeenCalled();
+      expect(mockAccountService.blacklistToken).toHaveBeenCalled();
     });
 
     it('UA 없으면 전체 세션 삭제', async () => {
       await authService.logout(user as any, undefined, undefined);
 
-      expect(mockSessionService.deleteAllUserSessions).toHaveBeenCalledWith(user);
+      expect(mockAccountService.deleteAllUserSessions).toHaveBeenCalledWith(user);
     });
   });
 
   describe('validateUser', () => {
     beforeEach(() => {
-      mockSessionService.isAccountLocked.mockResolvedValue(false);
-      mockSessionService.incrementAccFailCount.mockResolvedValue(undefined);
-      mockSessionService.resetAccFailCount.mockResolvedValue(undefined);
+      mockAccountService.isAccountLocked.mockResolvedValue(false);
+      mockAccountService.incrementAccFailCount.mockResolvedValue(undefined);
+      mockAccountService.resetAccFailCount.mockResolvedValue(undefined);
     });
 
     it('비밀번호 일치 시 유저 반환', async () => {
@@ -270,7 +270,7 @@ describe('AuthService', () => {
 
       await authService.validateUser(userDto.email, userDto.password);
 
-      expect(mockSessionService.resetAccFailCount).toHaveBeenCalled();
+      expect(mockAccountService.resetAccFailCount).toHaveBeenCalled();
     });
 
     it('비밀번호 불일치 시 null 반환', async () => {
@@ -288,11 +288,11 @@ describe('AuthService', () => {
 
       await authService.validateUser(userDto.email, userDto.password);
 
-      expect(mockSessionService.incrementAccFailCount).toHaveBeenCalled();
+      expect(mockAccountService.incrementAccFailCount).toHaveBeenCalled();
     });
 
     it('계정 잠금 상태 시 null 반환', async () => {
-      mockSessionService.isAccountLocked.mockResolvedValue(true);
+      mockAccountService.isAccountLocked.mockResolvedValue(true);
       mockUserService.findByEmail.mockResolvedValue(createdUser);
 
       const result = await authService.validateUser(userDto.email, userDto.password);
@@ -301,12 +301,12 @@ describe('AuthService', () => {
     });
 
     it('계정 잠금 상태 시 실패 횟수 증가 안 함', async () => {
-      mockSessionService.isAccountLocked.mockResolvedValue(true);
+      mockAccountService.isAccountLocked.mockResolvedValue(true);
       mockUserService.findByEmail.mockResolvedValue(createdUser);
 
       await authService.validateUser(userDto.email, userDto.password);
 
-      expect(mockSessionService.incrementAccFailCount).not.toHaveBeenCalled();
+      expect(mockAccountService.incrementAccFailCount).not.toHaveBeenCalled();
     });
 
     it('유저 없을 시 null 반환', async () => {

@@ -12,7 +12,8 @@ import { UserCreatedDto } from '../users/dto/user-response.dto';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
-import { SessionService, Session } from '../session/session.service';
+import { Session } from '../account/session.service';
+import { AccountService } from '../account/account.service';
 
 @Injectable()
 export class AuthService {
@@ -20,7 +21,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly userService: UsersService,
     private readonly jwtService: JwtService,
-    private readonly sessionService: SessionService,
+    private readonly accountService: AccountService,
   ) {}
 
   async register(registerDto: CreateUserDto): Promise<UserCreatedDto> {
@@ -45,18 +46,18 @@ export class AuthService {
 
     if (foundUser) {
       const [accountLocked, passwordMatched] = await Promise.all([
-        this.sessionService.isAccountLocked(foundUser),
+        this.accountService.isAccountLocked(foundUser),
         bcrypt.compare(password, foundUser.password),
       ]);
 
       if (accountLocked) return null;
 
       if (!passwordMatched) {
-        await this.sessionService.incrementAccFailCount(foundUser);
+        await this.accountService.incrementAccFailCount(foundUser);
         return null;
       }
 
-      await this.sessionService.resetAccFailCount(foundUser);
+      await this.accountService.resetAccFailCount(foundUser);
     }
 
     return foundUser;
@@ -71,7 +72,7 @@ export class AuthService {
 
     const tokenPair = await this.issueTokenPair(user);
 
-    await this.sessionService.createSession(
+    await this.accountService.createSession(
       user,
       userAgent,
       tokenPair.refresh_token,
@@ -90,19 +91,19 @@ export class AuthService {
     if (!refreshToken) throw new BadRequestException();
     if (!userAgent || !userIp) throw new UnauthorizedException();
 
-    const storedSession = await this.sessionService.findSession(
+    const storedSession = await this.accountService.findSession(
       user,
       userAgent,
     );
 
     if (!this.isSessionValid(storedSession, refreshToken, userIp)) {
-      await this.sessionService.deleteSession(user, userAgent);
+      await this.accountService.deleteSession(user, userAgent);
       throw new UnauthorizedException();
     }
 
     const newTokenPair = await this.issueTokenPair(user);
 
-    await this.sessionService.createSession(
+    await this.accountService.createSession(
       user,
       userAgent,
       newTokenPair.refresh_token,
@@ -127,7 +128,7 @@ export class AuthService {
 
   async logout(user: User, accessToken?: string, userAgent?: string) {
     if (!userAgent) {
-      await this.sessionService.deleteAllUserSessions(user);
+      await this.accountService.deleteAllUserSessions(user);
       return;
     }
 
@@ -136,10 +137,10 @@ export class AuthService {
       const payload = this.jwtService.decode(token) as { exp: number };
       const remainingTime = payload.exp * 1000 - Date.now(); // ms
 
-      await this.sessionService.blacklistToken(token, remainingTime);
+      await this.accountService.blacklistToken(token, remainingTime);
     }
 
-    await this.sessionService.deleteSession(user, userAgent);
+    await this.accountService.deleteSession(user, userAgent);
   }
 
   private async issueTokenPair(user: User): Promise<{

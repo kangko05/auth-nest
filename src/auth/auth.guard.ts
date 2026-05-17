@@ -4,14 +4,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { SessionService } from '../session/session.service';
+import { AccountService } from '../account/account.service';
 
 @Injectable()
 export class LocalAuthGuard extends AuthGuard('local') {}
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  constructor(private readonly sessionService: SessionService) {
+  constructor(private readonly accountService: AccountService) {
     super();
   }
 
@@ -21,7 +21,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     const req = context.switchToHttp().getRequest<Request>();
     const token = req.headers['authorization']?.split(' ')[1];
 
-    if (token && (await this.sessionService.isBlacklisted(token)))
+    if (token && (await this.accountService.isBlacklisted(token)))
       throw new UnauthorizedException();
 
     return true;

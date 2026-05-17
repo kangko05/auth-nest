@@ -4,14 +4,13 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 
 import { UsersModule } from '../users/users.module';
+import { AccountModule } from '../account/account.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { LocalStrategy } from './strategy/local.strategy';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { JwtAuthGuard, LocalAuthGuard, RefreshGuard } from './auth.guard';
 import { RefreshStrategy } from './strategy/refresh.strategy';
-import { SessionModule } from '../session/session.module';
-import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -25,7 +24,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     }),
     UsersModule,
     PassportModule,
-    SessionModule,
+    AccountModule,
   ],
   controllers: [AuthController],
   providers: [
