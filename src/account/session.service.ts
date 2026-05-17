@@ -1,9 +1,6 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { REDIS_CLIENT } from '../redis/constants';
 import Redis from 'ioredis';
 import { User } from '../users/entities/user.entity';
 import { createHash } from 'crypto';
-import { ConfigService } from '@nestjs/config';
 import ms from 'ms';
 
 export interface Session {
@@ -14,14 +11,14 @@ export interface Session {
   createdAt: number;
 }
 
-@Injectable()
 export class SessionService {
-  private readonly blackListKey = 'blacklist';
+  private readonly redisClient: Redis;
+  private readonly refreshExpiresIn: number;
 
-  constructor(
-    private readonly configService: ConfigService,
-    @Inject(REDIS_CLIENT) private readonly redisClient: Redis,
-  ) {}
+  constructor(redisClient: Redis, refreshExpiresIn: string) {
+    this.redisClient = redisClient;
+    this.refreshExpiresIn = ms(refreshExpiresIn as ms.StringValue);
+  }
 
   async createSession(
     user: User,
@@ -41,11 +38,7 @@ export class SessionService {
         createdAt: Date.now(),
       }),
       'PX',
-      ms(
-        this.configService.get<string>(
-          'jwt.refreshExpiresIn',
-        ) as ms.StringValue,
-      ),
+      this.refreshExpiresIn,
     );
   }
 
@@ -78,20 +71,5 @@ export class SessionService {
     const hashKey = `${userId}:${userAgent}`;
     const sessionIdPart = createHash('sha256').update(hashKey).digest('hex');
     return `${userId}:${sessionIdPart}`;
-  }
-
-  async blacklistToken(tokenString: string, remainingMs: number) {
-    await this.redisClient.set(
-      `${this.blackListKey}:${tokenString}`,
-      '1',
-      'PX',
-      remainingMs,
-    );
-  }
-
-  async isBlacklisted(token: string): Promise<boolean> {
-    return (
-      (await this.redisClient.get(`${this.blackListKey}:${token}`)) != null
-    );
   }
 }

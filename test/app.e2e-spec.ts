@@ -257,6 +257,49 @@ describe('Auth (e2e)', () => {
   });
 });
 
+describe('AccountLock (e2e)', () => {
+  let app: INestApplication<App>;
+  let dataSource: DataSource;
+
+  const dto = { email: 'locktest@test.com', password: 'Test1234!' };
+  const wrongDto = { email: 'locktest@test.com', password: 'WrongPass1!' };
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    app.use(cookieParser());
+    app.useGlobalPipes(new ValidationPipe());
+    await app.init();
+
+    dataSource = app.get<DataSource>(DATA_SOURCE);
+    await request(app.getHttpServer()).post('/auth/register').send(dto);
+  });
+
+  afterAll(async () => {
+    await dataSource.query(`DELETE FROM \`user\` WHERE email = '${dto.email}'`);
+    await app.close();
+  });
+
+  it('5회 실패 후 로그인 시도 시 401', async () => {
+    for (let i = 0; i < 5; i++) {
+      await request(app.getHttpServer())
+        .post('/auth/login')
+        .set('User-Agent', 'Mozilla/5.0 (Test)')
+        .send(wrongDto);
+    }
+
+    const res = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('User-Agent', 'Mozilla/5.0 (Test)')
+      .send(dto);
+
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('Throttler (e2e)', () => {
   let app: INestApplication<App>;
 
