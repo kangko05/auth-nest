@@ -1,14 +1,17 @@
 import { Redis } from 'ioredis';
 import { User } from '../users/entities/user.entity';
+import { type LoggerService } from '@nestjs/common';
 
 export class LockService {
   private readonly accFailKey = 'login:fail:'; // + user.id
   private readonly accLockKey = 'login:lock:'; // + user.id
   private readonly accFailLimit = 5;
   private readonly redisClient: Redis;
+  private readonly logger: LoggerService;
 
-  constructor(redisClient: Redis) {
+  constructor(redisClient: Redis, logger: LoggerService) {
     this.redisClient = redisClient;
+    this.logger = logger;
   }
 
   async isAccountLocked(user: User): Promise<boolean> {
@@ -29,6 +32,8 @@ export class LockService {
         'EX',
         1800,
       ); // 30m
+
+      this.logger.warn(`account locked: ${user.id}`);
     }
   }
 

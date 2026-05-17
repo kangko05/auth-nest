@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, type LoggerService } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 import { REDIS_CLIENT } from '../redis/constants';
@@ -6,6 +6,7 @@ import { SessionService, Session } from './session.service';
 import { BlacklistService } from './blacklist.service';
 import { LockService } from './lock.service';
 import { User } from '../users/entities/user.entity';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 @Injectable()
 export class AccountService {
@@ -16,6 +17,8 @@ export class AccountService {
   constructor(
     private readonly configService: ConfigService,
     @Inject(REDIS_CLIENT) private readonly redisClient: Redis,
+    @Inject(WINSTON_MODULE_NEST_PROVIDER)
+    private readonly logger: LoggerService,
   ) {
     this.sessionService = new SessionService(
       this.redisClient,
@@ -23,7 +26,7 @@ export class AccountService {
     );
 
     this.blackListService = new BlacklistService(this.redisClient);
-    this.lockService = new LockService(this.redisClient);
+    this.lockService = new LockService(this.redisClient, this.logger);
   }
 
   // session services ==============================

@@ -7,11 +7,25 @@ import { AppController } from './app.controller';
 import { RedisModule } from './redis/redis.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { WinstonModule } from 'nest-winston';
+import winston from 'winston';
+import { LoggingInterceptor } from './common/logging.interceptor';
 
 @Module({
   imports: [
     ConfigModule,
+    WinstonModule.forRoot({
+      transports: [
+        new winston.transports.Console({
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.colorize(),
+            winston.format.simple(),
+          ),
+        }),
+      ],
+    }),
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -29,6 +43,9 @@ import { APP_GUARD } from '@nestjs/core';
     RedisModule,
   ],
   controllers: [AppController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
+  ],
 })
 export class AppModule {}
