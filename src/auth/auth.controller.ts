@@ -105,23 +105,34 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Put('/unlock/:userId')
-  async unlockUserAccount(@Param('userId') userId: string) {
-    await this.authService.unlockUserAccount(userId);
+  async unlockUserAccount(
+    @Param('userId') userId: string,
+    @CurrentUser() admin: User,
+  ) {
+    await this.authService.unlockUserAccount(admin.id, userId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Put('/ban/:userId')
-  async banUser(@Param('userId') userId: string) {
-    const affected = await this.authService.updateUserBanStatus(userId, true);
+  async banUser(@Param('userId') userId: string, @CurrentUser() admin: User) {
+    const affected = await this.authService.updateUserBanStatus(
+      admin.id,
+      userId,
+      true,
+    );
     return { affected };
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Delete('/ban/:userId')
-  async unbanUser(@Param('userId') userId: string) {
-    const affected = await this.authService.updateUserBanStatus(userId, false);
+  async unbanUser(@Param('userId') userId: string, @CurrentUser() admin: User) {
+    const affected = await this.authService.updateUserBanStatus(
+      admin.id,
+      userId,
+      false,
+    );
     return { affected };
   }
 }

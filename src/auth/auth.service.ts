@@ -2,9 +2,11 @@ import * as bcrypt from 'bcrypt';
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  type LoggerService,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -15,6 +17,7 @@ import { User } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
 import { Session } from '../account/session.service';
 import { AccountService } from '../account/account.service';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +26,9 @@ export class AuthService {
     private readonly userService: UsersService,
     private readonly jwtService: JwtService,
     private readonly accountService: AccountService,
+
+    @Inject(WINSTON_MODULE_NEST_PROVIDER)
+    private readonly logger: LoggerService,
   ) {}
 
   async register(registerDto: CreateUserDto): Promise<UserCreatedDto> {
@@ -51,10 +57,16 @@ export class AuthService {
         bcrypt.compare(password, foundUser.password),
       ]);
 
-      if (accountLocked) return null;
+      if (accountLocked) {
+        this.logger.warn(`login attempt on locked account: ${email}`);
+        return null;
+      }
 
       if (!passwordMatched) {
         await this.accountService.incrementAccFailCount(foundUser);
+
+        this.logger.warn(`login failed: ${email}`);
+
         return null;
       }
 
@@ -80,6 +92,8 @@ export class AuthService {
       userIp,
     );
 
+    this.logger.log(`user logged in: ${user.id}`);
+
     return tokenPair;
   }
 
@@ -99,6 +113,9 @@ export class AuthService {
 
     if (!this.isSessionValid(storedSession, refreshToken, userIp)) {
       await this.accountService.deleteSession(user, userAgent);
+
+      this.logger.warn(`IP mismatch detected, session deleted: ${user.id}`);
+
       throw new UnauthorizedException();
     }
 
@@ -110,6 +127,8 @@ export class AuthService {
       newTokenPair.refresh_token,
       userIp,
     );
+
+    this.logger.log(`token refreshed: ${user.id}`);
 
     return newTokenPair;
   }
@@ -142,6 +161,8 @@ export class AuthService {
     }
 
     await this.accountService.deleteSession(user, userAgent);
+
+    this.logger.log(`user logged out: ${user.id}`);
   }
 
   private async issueTokenPair(user: User): Promise<{
@@ -168,21 +189,39 @@ export class AuthService {
     return { access_token: tokenPair[0], refresh_token: tokenPair[1] };
   }
 
-  async unlockUserAccount(userId: string) {
+  // ● User banned by admin ${adminId}: target ${userId}
+  // User unbanned by admin ${adminId}: target ${userId}
+  // User account unlocked by admin ${adminId}: target ${userId}
+
+  async unlockUserAccount(adminId: string, userId: string) {
     const foundUser = await this.userService.findByUserId(userId);
 
     if (!foundUser) throw new NotFoundException();
 
     await this.accountService.resetAccFailCount(foundUser);
+
+    this.logger.log(
+      `user account unlocked by admin ${adminId}: target ${userId}`,
+    );
   }
 
-  async updateUserBanStatus(userId: string, isBanned: boolean) {
+  async updateUserBanStatus(
+    adminId: string,
+    userId: string,
+    isBanned: boolean,
+  ) {
     const affected = await this.userService.updateUserBanStatus(
       userId,
       isBanned,
     );
 
     if (affected === 0) throw new NotFoundException();
+
+    if (isBanned) {
+      this.logger.warn(`user banned by admin ${adminId}: target ${userId}`);
+    } else {
+      this.logger.log(`user unbanned by admin ${adminId}: target ${userId}`);
+    }
 
     return affected;
   }

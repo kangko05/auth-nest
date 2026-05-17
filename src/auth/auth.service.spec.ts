@@ -6,6 +6,13 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AccountService } from '../account/account.service';
 import * as bcrypt from 'bcrypt';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+
+const mockLogger = {
+  log: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+};
 
 const mockUserService = {
   findByEmail: jest.fn(),
@@ -67,6 +74,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJWTService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: AccountService, useValue: mockAccountService },
+        { provide: WINSTON_MODULE_NEST_PROVIDER, useValue: mockLogger },
       ],
     }).compile();
 
@@ -325,7 +333,7 @@ describe('AuthService', () => {
       mockUserService.findByUserId.mockResolvedValue(user);
       mockAccountService.resetAccFailCount.mockResolvedValue(undefined);
 
-      await authService.unlockUserAccount(user.id);
+      await authService.unlockUserAccount('admin-id', user.id);
 
       expect(mockAccountService.resetAccFailCount).toHaveBeenCalledWith(user);
     });
@@ -333,7 +341,7 @@ describe('AuthService', () => {
     it('유저 없으면 NotFoundException', async () => {
       mockUserService.findByUserId.mockResolvedValue(null);
 
-      await expect(authService.unlockUserAccount('non-existent')).rejects.toThrow(NotFoundException);
+      await expect(authService.unlockUserAccount('admin-id', 'non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -341,7 +349,7 @@ describe('AuthService', () => {
     it('밴 처리 성공', async () => {
       mockUserService.updateUserBanStatus.mockResolvedValue(1);
 
-      const result = await authService.updateUserBanStatus(user.id, true);
+      const result = await authService.updateUserBanStatus('admin-id', user.id, true);
 
       expect(mockUserService.updateUserBanStatus).toHaveBeenCalledWith(user.id, true);
       expect(result).toBe(1);
@@ -350,7 +358,7 @@ describe('AuthService', () => {
     it('유저 없으면 NotFoundException', async () => {
       mockUserService.updateUserBanStatus.mockResolvedValue(0);
 
-      await expect(authService.updateUserBanStatus('non-existent', true)).rejects.toThrow(NotFoundException);
+      await expect(authService.updateUserBanStatus('admin-id', 'non-existent', true)).rejects.toThrow(NotFoundException);
     });
   });
 });

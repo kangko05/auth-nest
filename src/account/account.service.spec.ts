@@ -2,8 +2,15 @@ import { Test } from '@nestjs/testing';
 import { AccountService } from './account.service';
 import { ConfigService } from '@nestjs/config';
 import { REDIS_CLIENT } from '../redis/constants';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { createHash } from 'crypto';
 import { User } from '../users/entities/user.entity';
+
+const mockLogger = {
+  log: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+};
 
 const mockRedisClient = {
   get: jest.fn(),
@@ -47,6 +54,7 @@ describe('AccountService', () => {
         AccountService,
         { provide: ConfigService, useValue: mockConfigService },
         { provide: REDIS_CLIENT, useValue: mockRedisClient },
+        { provide: WINSTON_MODULE_NEST_PROVIDER, useValue: mockLogger },
       ],
     }).compile();
 
