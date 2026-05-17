@@ -9,6 +9,7 @@ const mockRedisClient = {
   get: jest.fn(),
   set: jest.fn(),
   del: jest.fn(),
+  scanStream: jest.fn(),
 };
 
 const mockConfigService = {
@@ -111,6 +112,68 @@ describe('SessionService', () => {
 
       const expectedKey = getSessionId(user.id, userAgent);
       expect(mockRedisClient.del).toHaveBeenCalledWith(expectedKey);
+    });
+  });
+
+  describe('deleteAllUserSessions', () => {
+    const makeAsyncIterable = (batches: string[][]) => ({
+      [Symbol.asyncIterator]: async function* () {
+        for (const batch of batches) yield batch;
+      },
+    });
+
+    it('유저의 모든 세션 키 삭제', async () => {
+      const keys = [getSessionId(user.id, 'agent1'), getSessionId(user.id, 'agent2')];
+      mockRedisClient.scanStream.mockReturnValue(makeAsyncIterable([keys]));
+      mockRedisClient.del.mockResolvedValue(2);
+
+      await sessionService.deleteAllUserSessions(user);
+
+      expect(mockRedisClient.scanStream).toHaveBeenCalledWith({ match: `${user.id}:*` });
+      expect(mockRedisClient.del).toHaveBeenCalledWith(...keys);
+    });
+
+    it('세션 없으면 del 호출 안 함', async () => {
+      mockRedisClient.scanStream.mockReturnValue(makeAsyncIterable([[]]));
+
+      await sessionService.deleteAllUserSessions(user);
+
+      expect(mockRedisClient.del).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('blacklistToken', () => {
+    it('올바른 키와 TTL로 저장', async () => {
+      mockRedisClient.set.mockResolvedValue('OK');
+      const token = 'some.jwt.token';
+      const remainingMs = 3600000;
+
+      await sessionService.blacklistToken(token, remainingMs);
+
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
+        `blacklist:${token}`,
+        '1',
+        'PX',
+        remainingMs,
+      );
+    });
+  });
+
+  describe('isBlacklisted', () => {
+    it('블랙리스트에 있으면 true', async () => {
+      mockRedisClient.get.mockResolvedValue('1');
+
+      const result = await sessionService.isBlacklisted('some.token');
+
+      expect(result).toBe(true);
+    });
+
+    it('블랙리스트에 없으면 false', async () => {
+      mockRedisClient.get.mockResolvedValue(null);
+
+      const result = await sessionService.isBlacklisted('some.token');
+
+      expect(result).toBe(false);
     });
   });
 });
