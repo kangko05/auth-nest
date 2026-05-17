@@ -43,8 +43,21 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<User | null> {
     const foundUser = await this.userService.findByEmail(email);
 
-    if (!foundUser || !(await bcrypt.compare(password, foundUser.password)))
-      return null;
+    if (foundUser) {
+      const [accountLocked, passwordMatched] = await Promise.all([
+        this.sessionService.isAccountLocked(foundUser),
+        bcrypt.compare(password, foundUser.password),
+      ]);
+
+      if (accountLocked) return null;
+
+      if (!passwordMatched) {
+        await this.sessionService.incrementAccFailCount(foundUser);
+        return null;
+      }
+
+      await this.sessionService.resetAccFailCount(foundUser);
+    }
 
     return foundUser;
   }

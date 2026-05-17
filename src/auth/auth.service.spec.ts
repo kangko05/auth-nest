@@ -34,6 +34,9 @@ const mockSessionService = {
   deleteAllUserSessions: jest.fn(),
   blacklistToken: jest.fn(),
   isBlacklisted: jest.fn(),
+  isAccountLocked: jest.fn(),
+  incrementAccFailCount: jest.fn(),
+  resetAccFailCount: jest.fn(),
 };
 
 const user = {
@@ -245,6 +248,12 @@ describe('AuthService', () => {
   });
 
   describe('validateUser', () => {
+    beforeEach(() => {
+      mockSessionService.isAccountLocked.mockResolvedValue(false);
+      mockSessionService.incrementAccFailCount.mockResolvedValue(undefined);
+      mockSessionService.resetAccFailCount.mockResolvedValue(undefined);
+    });
+
     it('비밀번호 일치 시 유저 반환', async () => {
       const hashedPassword = await bcrypt.hash(userDto.password, 12);
       mockUserService.findByEmail.mockResolvedValue({ ...createdUser, password: hashedPassword });
@@ -255,6 +264,15 @@ describe('AuthService', () => {
       expect(result?.email).toBe(userDto.email);
     });
 
+    it('성공 시 실패 횟수 초기화', async () => {
+      const hashedPassword = await bcrypt.hash(userDto.password, 12);
+      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, password: hashedPassword });
+
+      await authService.validateUser(userDto.email, userDto.password);
+
+      expect(mockSessionService.resetAccFailCount).toHaveBeenCalled();
+    });
+
     it('비밀번호 불일치 시 null 반환', async () => {
       const hashedPassword = await bcrypt.hash('wrongpassword', 12);
       mockUserService.findByEmail.mockResolvedValue({ ...createdUser, password: hashedPassword });
@@ -262,6 +280,33 @@ describe('AuthService', () => {
       const result = await authService.validateUser(userDto.email, userDto.password);
 
       expect(result).toBeNull();
+    });
+
+    it('비밀번호 불일치 시 실패 횟수 증가', async () => {
+      const hashedPassword = await bcrypt.hash('wrongpassword', 12);
+      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, password: hashedPassword });
+
+      await authService.validateUser(userDto.email, userDto.password);
+
+      expect(mockSessionService.incrementAccFailCount).toHaveBeenCalled();
+    });
+
+    it('계정 잠금 상태 시 null 반환', async () => {
+      mockSessionService.isAccountLocked.mockResolvedValue(true);
+      mockUserService.findByEmail.mockResolvedValue(createdUser);
+
+      const result = await authService.validateUser(userDto.email, userDto.password);
+
+      expect(result).toBeNull();
+    });
+
+    it('계정 잠금 상태 시 실패 횟수 증가 안 함', async () => {
+      mockSessionService.isAccountLocked.mockResolvedValue(true);
+      mockUserService.findByEmail.mockResolvedValue(createdUser);
+
+      await authService.validateUser(userDto.email, userDto.password);
+
+      expect(mockSessionService.incrementAccFailCount).not.toHaveBeenCalled();
     });
 
     it('유저 없을 시 null 반환', async () => {

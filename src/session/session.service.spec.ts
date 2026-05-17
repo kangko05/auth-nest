@@ -10,6 +10,8 @@ const mockRedisClient = {
   set: jest.fn(),
   del: jest.fn(),
   scanStream: jest.fn(),
+  incr: jest.fn(),
+  expire: jest.fn(),
 };
 
 const mockConfigService = {
@@ -174,6 +176,77 @@ describe('SessionService', () => {
       const result = await sessionService.isBlacklisted('some.token');
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('isAccountLocked', () => {
+    it('lock 키 있으면 true', async () => {
+      mockRedisClient.get.mockResolvedValue('1');
+
+      const result = await sessionService.isAccountLocked(user);
+
+      expect(mockRedisClient.get).toHaveBeenCalledWith(`login:lock:${user.id}`);
+      expect(result).toBe(true);
+    });
+
+    it('lock 키 없으면 false', async () => {
+      mockRedisClient.get.mockResolvedValue(null);
+
+      const result = await sessionService.isAccountLocked(user);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('incrementAccFailCount', () => {
+    it('첫 번째 실패 시 TTL 설정', async () => {
+      mockRedisClient.incr.mockResolvedValue(1);
+      mockRedisClient.expire.mockResolvedValue(1);
+
+      await sessionService.incrementAccFailCount(user);
+
+      expect(mockRedisClient.expire).toHaveBeenCalledWith(`login:fail:${user.id}`, 600);
+    });
+
+    it('첫 번째 실패가 아니면 TTL 설정 안 함', async () => {
+      mockRedisClient.incr.mockResolvedValue(2);
+
+      await sessionService.incrementAccFailCount(user);
+
+      expect(mockRedisClient.expire).not.toHaveBeenCalled();
+    });
+
+    it('5번째 실패 시 lock 키 설정', async () => {
+      mockRedisClient.incr.mockResolvedValue(5);
+      mockRedisClient.set.mockResolvedValue('OK');
+
+      await sessionService.incrementAccFailCount(user);
+
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
+        `login:lock:${user.id}`,
+        '1',
+        'EX',
+        1800,
+      );
+    });
+
+    it('5번 미만 실패 시 lock 키 설정 안 함', async () => {
+      mockRedisClient.incr.mockResolvedValue(4);
+
+      await sessionService.incrementAccFailCount(user);
+
+      expect(mockRedisClient.set).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resetAccFailCount', () => {
+    it('fail 키와 lock 키 모두 삭제', async () => {
+      mockRedisClient.del.mockResolvedValue(1);
+
+      await sessionService.resetAccFailCount(user);
+
+      expect(mockRedisClient.del).toHaveBeenCalledWith(`login:fail:${user.id}`);
+      expect(mockRedisClient.del).toHaveBeenCalledWith(`login:lock:${user.id}`);
     });
   });
 });
