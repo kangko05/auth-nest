@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Test } from '@nestjs/testing';
 import { UsersService } from '../users/users.service';
@@ -10,6 +10,8 @@ import * as bcrypt from 'bcrypt';
 const mockUserService = {
   findByEmail: jest.fn(),
   create: jest.fn(),
+  findByUserId: jest.fn(),
+  updateUserBanStatus: jest.fn(),
 };
 
 const mockJWTService = {
@@ -315,6 +317,40 @@ describe('AuthService', () => {
       const result = await authService.validateUser(userDto.email, userDto.password);
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('unlockUserAccount', () => {
+    it('유저 존재 시 잠금 해제', async () => {
+      mockUserService.findByUserId.mockResolvedValue(user);
+      mockAccountService.resetAccFailCount.mockResolvedValue(undefined);
+
+      await authService.unlockUserAccount(user.id);
+
+      expect(mockAccountService.resetAccFailCount).toHaveBeenCalledWith(user);
+    });
+
+    it('유저 없으면 NotFoundException', async () => {
+      mockUserService.findByUserId.mockResolvedValue(null);
+
+      await expect(authService.unlockUserAccount('non-existent')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('updateUserBanStatus', () => {
+    it('밴 처리 성공', async () => {
+      mockUserService.updateUserBanStatus.mockResolvedValue(1);
+
+      const result = await authService.updateUserBanStatus(user.id, true);
+
+      expect(mockUserService.updateUserBanStatus).toHaveBeenCalledWith(user.id, true);
+      expect(result).toBe(1);
+    });
+
+    it('유저 없으면 NotFoundException', async () => {
+      mockUserService.updateUserBanStatus.mockResolvedValue(0);
+
+      await expect(authService.updateUserBanStatus('non-existent', true)).rejects.toThrow(NotFoundException);
     });
   });
 });

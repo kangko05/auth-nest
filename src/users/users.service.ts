@@ -14,8 +14,17 @@ export class UsersService {
     return this.userRepository.findOne({ where: { email } });
   }
 
+  async findByUserId(userId: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { id: userId } });
+  }
+
   async create(dto: CreateUserDto): Promise<User> {
     const user = this.userRepository.create(dto);
     return this.userRepository.save(user);
+  }
+
+  async updateUserBanStatus(userId: string, isBanned: boolean) {
+    const result = await this.userRepository.update(userId, { isBanned });
+    return result.affected ?? 0;
   }
 }
