@@ -15,6 +15,7 @@ const mockUserRepository = {
   findOne: jest.fn(),
   create: jest.fn(),
   save: jest.fn(),
+  update: jest.fn(),
 };
 
 describe('UsersService', () => {
@@ -65,6 +66,46 @@ describe('UsersService', () => {
       expect(mockUserRepository.create).toHaveBeenCalledWith(dto);
       expect(mockUserRepository.save).toHaveBeenCalledWith(mockUser);
       expect(result).toEqual(mockUser);
+    });
+  });
+
+  describe('findByUserId', () => {
+    it('존재하는 유저 반환', async () => {
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+
+      const result = await usersService.findByUserId(mockUser.id);
+
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+        where: { id: mockUser.id },
+      });
+      expect(result).toEqual(mockUser);
+    });
+
+    it('존재하지 않으면 null 반환', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      const result = await usersService.findByUserId('non-existent-id');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateUserBanStatus', () => {
+    it('밴 처리 시 affected 반환', async () => {
+      mockUserRepository.update.mockResolvedValue({ affected: 1 });
+
+      const result = await usersService.updateUserBanStatus(mockUser.id, true);
+
+      expect(mockUserRepository.update).toHaveBeenCalledWith(mockUser.id, { isBanned: true });
+      expect(result).toBe(1);
+    });
+
+    it('존재하지 않는 유저면 0 반환', async () => {
+      mockUserRepository.update.mockResolvedValue({ affected: 0 });
+
+      const result = await usersService.updateUserBanStatus('non-existent-id', true);
+
+      expect(result).toBe(0);
     });
   });
 });

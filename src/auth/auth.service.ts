@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
@@ -149,13 +150,13 @@ export class AuthService {
   }> {
     const tokenPair = await Promise.all([
       this.jwtService.signAsync(
-        { jti: randomUUID(), sub: user.id },
+        { jti: randomUUID(), sub: user.id, role: user.role },
         {
           algorithm: 'HS256',
         },
       ),
       this.jwtService.signAsync(
-        { jti: randomUUID(), sub: user.id },
+        { jti: randomUUID(), sub: user.id, role: user.role },
         {
           secret: this.configService.get('jwt.refreshSecret'),
           expiresIn: this.configService.get('jwt.refreshExpiresIn'),
@@ -165,5 +166,24 @@ export class AuthService {
     ]);
 
     return { access_token: tokenPair[0], refresh_token: tokenPair[1] };
+  }
+
+  async unlockUserAccount(userId: string) {
+    const foundUser = await this.userService.findByUserId(userId);
+
+    if (!foundUser) throw new NotFoundException();
+
+    await this.accountService.resetAccFailCount(foundUser);
+  }
+
+  async updateUserBanStatus(userId: string, isBanned: boolean) {
+    const affected = await this.userService.updateUserBanStatus(
+      userId,
+      isBanned,
+    );
+
+    if (affected === 0) throw new NotFoundException();
+
+    return affected;
   }
 }

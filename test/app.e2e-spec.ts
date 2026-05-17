@@ -300,6 +300,93 @@ describe('AccountLock (e2e)', () => {
   });
 });
 
+describe('RBAC (e2e)', () => {
+  let app: INestApplication<App>;
+  let dataSource: DataSource;
+
+  const userDto = { email: 'rbac-user@test.com', password: 'Test1234!' };
+  const adminDto = { email: 'rbac-admin@test.com', password: 'Test1234!' };
+  const testAgent = 'Mozilla/5.0 (Test)';
+
+  let userToken: string;
+  let adminToken: string;
+  let targetUserId: string;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    app.use(cookieParser());
+    app.useGlobalPipes(new ValidationPipe());
+    await app.init();
+
+    dataSource = app.get<DataSource>(DATA_SOURCE);
+
+    await request(app.getHttpServer()).post('/auth/register').send(userDto);
+    await request(app.getHttpServer()).post('/auth/register').send(adminDto);
+
+    // admin role 부여
+    await dataSource.query(`UPDATE \`user\` SET role = 'admin' WHERE email = '${adminDto.email}'`);
+
+    const userLogin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('User-Agent', testAgent)
+      .send(userDto);
+    userToken = userLogin.body.access_token;
+
+    const adminLogin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('User-Agent', testAgent)
+      .send(adminDto);
+    adminToken = adminLogin.body.access_token;
+
+    const targetUser = await dataSource.query(`SELECT id FROM \`user\` WHERE email = '${userDto.email}'`);
+    targetUserId = targetUser[0].id;
+  });
+
+  afterAll(async () => {
+    await dataSource.query(`DELETE FROM \`user\` WHERE email IN ('${userDto.email}', '${adminDto.email}')`);
+    await app.close();
+  });
+
+  it('일반 유저가 관리자 엔드포인트 접근 시 403', () => {
+    return request(app.getHttpServer())
+      .put(`/auth/unlock/${targetUserId}`)
+      .set('Authorization', `Bearer ${userToken}`)
+      .expect(403);
+  });
+
+  it('관리자가 계정 잠금 해제', () => {
+    return request(app.getHttpServer())
+      .put(`/auth/unlock/${targetUserId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+  });
+
+  it('관리자가 유저 밴', () => {
+    return request(app.getHttpServer())
+      .put(`/auth/ban/${targetUserId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+  });
+
+  it('관리자가 유저 밴 해제', () => {
+    return request(app.getHttpServer())
+      .delete(`/auth/ban/${targetUserId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+  });
+
+  it('존재하지 않는 유저 밴 시 404', () => {
+    return request(app.getHttpServer())
+      .put(`/auth/ban/non-existent-id`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(404);
+  });
+});
+
 describe('Throttler (e2e)', () => {
   let app: INestApplication<App>;
 
