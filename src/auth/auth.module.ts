@@ -11,10 +11,10 @@ import { JwtStrategy } from './strategy/jwt.strategy';
 import { JwtAuthGuard, LocalAuthGuard, RefreshGuard } from './auth.guard';
 import { RefreshStrategy } from './strategy/refresh.strategy';
 import { SessionModule } from '../session/session.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
-    UsersModule,
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],
@@ -23,6 +23,7 @@ import { SessionModule } from '../session/session.module';
         signOptions: { expiresIn: configService.get('jwt.expiresIn') },
       }),
     }),
+    UsersModule,
     PassportModule,
     SessionModule,
   ],

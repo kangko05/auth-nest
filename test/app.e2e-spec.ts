@@ -234,4 +234,61 @@ describe('Auth (e2e)', () => {
       .set('Cookie', cookies)
       .expect(401);
   });
+
+  it('POST /auth/refresh - 갱신 후 이전 refresh token 재사용 시 401', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('User-Agent', testAgent)
+      .send(dto);
+
+    const oldCookies = loginRes.headers['set-cookie'];
+
+    await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('User-Agent', testAgent)
+      .set('Cookie', oldCookies)
+      .expect(201);
+
+    return request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('User-Agent', testAgent)
+      .set('Cookie', oldCookies)
+      .expect(401);
+  });
+});
+
+describe('Throttler (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider('THROTTLER:MODULE_OPTIONS')
+      .useValue([{ ttl: 60000, limit: 2 }])
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    app.use(cookieParser());
+    app.useGlobalPipes(new ValidationPipe());
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('한도 초과 시 429 반환', async () => {
+    for (let i = 0; i < 2; i++) {
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: 'throttle@test.com', password: 'short' });
+    }
+
+    const res = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ email: 'throttle@test.com', password: 'short' });
+
+    expect(res.status).toBe(429);
+  });
 });

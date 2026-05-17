@@ -203,6 +203,16 @@ describe('AuthService', () => {
         authService.refresh(user as any, storedToken, undefined, '127.0.0.1'),
       ).rejects.toThrow(UnauthorizedException);
     });
+
+    it('IP 불일치 시 UnauthorizedException + 세션 삭제', async () => {
+      mockSessionService.findSession.mockResolvedValue({ refreshToken: storedToken, ip: '192.168.1.1' });
+
+      await expect(
+        authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1'),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(mockSessionService.deleteSession).toHaveBeenCalledWith(user, 'Mozilla/5.0');
+    });
   });
 
   describe('logout', () => {

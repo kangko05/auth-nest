@@ -5,10 +5,30 @@ import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { AppController } from './app.controller';
 import { RedisModule } from './redis/redis.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
-  imports: [ConfigModule, DatabaseModule, UsersModule, AuthModule, RedisModule],
+  imports: [
+    ConfigModule,
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          // TODO:  look into below 2 lines later
+          ttl: parseInt(config.get('throttle.ttl')!),
+          limit: parseInt(config.get('throttle.limit')!),
+        },
+      ],
+    }),
+    DatabaseModule,
+    UsersModule,
+    AuthModule,
+    RedisModule,
+  ],
   controllers: [AppController],
-  providers: [],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

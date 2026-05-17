@@ -14,6 +14,7 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard, LocalAuthGuard, RefreshGuard } from './auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 @Controller('auth')
 export class AuthController {
@@ -50,6 +51,7 @@ export class AuthController {
     return { access_token };
   }
 
+  @Throttle({ default: { limit: 30 } })
   @UseGuards(RefreshGuard)
   @Post('refresh')
   async refresh(
@@ -74,6 +76,7 @@ export class AuthController {
     return { access_token };
   }
 
+  @Throttle({ default: { limit: 10 } })
   @HttpCode(204)
   @UseGuards(JwtAuthGuard)
   @Delete('logout')
