@@ -397,6 +397,45 @@ describe('RBAC (e2e)', () => {
   });
 });
 
+describe('Health (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    app.use(cookieParser());
+    app.useGlobalPipes(new ValidationPipe());
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('GET /health/live - 200', () => {
+    return request(app.getHttpServer())
+      .get('/health/live')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.status).toBe('ok');
+      });
+  });
+
+  it('GET /health/ready - DB/Redis 정상 시 200', () => {
+    return request(app.getHttpServer())
+      .get('/health/ready')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.status).toBe('ok');
+        expect(body.info.typeOrm.status).toBe('up');
+        expect(body.info.redis.status).toBe('up');
+      });
+  });
+});
+
 describe('Throttler (e2e)', () => {
   let app: INestApplication<App>;
 

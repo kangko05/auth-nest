@@ -12,6 +12,7 @@ import { WinstonModule } from 'nest-winston';
 import winston from 'winston';
 import { LoggingInterceptor } from './common/logging.interceptor';
 import { HttpExceptionFilter } from './common/exception.filter';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { HttpExceptionFilter } from './common/exception.filter';
     UsersModule,
     AuthModule,
     RedisModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [
