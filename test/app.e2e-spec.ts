@@ -4,7 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 import cookieParser from 'cookie-parser';
-import { AppModule } from './../src/app.module';
+import { AppModule } from '../src/app.module';
 import { DATA_SOURCE } from '../src/database/constants';
 
 describe('AppController (e2e)', () => {
@@ -79,7 +79,8 @@ describe('Auth (e2e)', () => {
       .send(dto)
       .expect(409)
       .expect(({ body }) => {
-        expect(body.message).toBe('이미 사용 중인 이메일 입니다.');
+        expect(body.message).toBe('이미 사용 중인 이메일입니다.');
+        expect(body.errorCode).toBe('EMAIL_ALREADY_EXISTS');
       });
   });
 
@@ -328,7 +329,9 @@ describe('RBAC (e2e)', () => {
     await request(app.getHttpServer()).post('/auth/register').send(adminDto);
 
     // admin role 부여
-    await dataSource.query(`UPDATE \`user\` SET role = 'admin' WHERE email = '${adminDto.email}'`);
+    await dataSource.query(
+      `UPDATE \`user\` SET role = 'admin' WHERE email = '${adminDto.email}'`,
+    );
 
     const userLogin = await request(app.getHttpServer())
       .post('/auth/login')
@@ -342,12 +345,16 @@ describe('RBAC (e2e)', () => {
       .send(adminDto);
     adminToken = adminLogin.body.access_token;
 
-    const targetUser = await dataSource.query(`SELECT id FROM \`user\` WHERE email = '${userDto.email}'`);
+    const targetUser = await dataSource.query(
+      `SELECT id FROM \`user\` WHERE email = '${userDto.email}'`,
+    );
     targetUserId = targetUser[0].id;
   });
 
   afterAll(async () => {
-    await dataSource.query(`DELETE FROM \`user\` WHERE email IN ('${userDto.email}', '${adminDto.email}')`);
+    await dataSource.query(
+      `DELETE FROM \`user\` WHERE email IN ('${userDto.email}', '${adminDto.email}')`,
+    );
     await app.close();
   });
 
@@ -383,7 +390,10 @@ describe('RBAC (e2e)', () => {
     return request(app.getHttpServer())
       .put(`/auth/ban/non-existent-id`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .expect(404);
+      .expect(404)
+      .expect(({ body }) => {
+        expect(body.errorCode).toBe('USER_NOT_FOUND');
+      });
   });
 });
 

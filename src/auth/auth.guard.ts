@@ -1,15 +1,11 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AccountService } from '../account/account.service';
 import { Observable } from 'rxjs';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '../users/entities/user.entity';
 import { ROLES_KEY } from './decorators/roles.decorator';
+import { AppException, ErrorCode } from '../common/exception.filter';
 
 @Injectable()
 export class LocalAuthGuard extends AuthGuard('local') {}
@@ -27,7 +23,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     const token = req.headers['authorization']?.split(' ')[1];
 
     if (token && (await this.accountService.isBlacklisted(token)))
-      throw new UnauthorizedException();
+      throw new AppException(ErrorCode.TOKEN_BLACKLISTED);
 
     return true;
   }
