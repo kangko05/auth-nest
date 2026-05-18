@@ -51,15 +51,24 @@ export class AuthService {
     const foundUser = await this.userService.findByEmail(email);
 
     if (foundUser) {
-      const [accountLocked, passwordMatched] = await Promise.all([
-        this.accountService.isAccountLocked(foundUser),
-        bcrypt.compare(password, foundUser.password),
-      ]);
+      const accountLocked =
+        await this.accountService.isAccountLocked(foundUser);
 
       if (accountLocked) {
         this.logger.warn(`login attempt on locked account: ${email}`);
         return null;
       }
+
+      if (foundUser.isBanned) {
+        this.logger.warn(`login detected from banned user: ${email}`);
+
+        return null;
+      }
+
+      const passwordMatched = await bcrypt.compare(
+        password,
+        foundUser.password,
+      );
 
       if (!passwordMatched) {
         await this.accountService.incrementAccFailCount(foundUser);
@@ -110,11 +119,17 @@ export class AuthService {
       userAgent,
     );
 
-    if (!this.isSessionValid(storedSession, refreshToken, userIp)) {
-      await this.accountService.deleteSession(user, userAgent);
-
+    if (!storedSession) {
+      this.logger.warn(`session not found: ${user.id}`);
+      throw new AppException(ErrorCode.SESSION_NOT_FOUND);
+    }
+    if (storedSession.refreshToken !== refreshToken) {
+      this.logger.warn(`refresh token mismatch: ${user.id}`);
+      throw new AppException(ErrorCode.SESSION_NOT_FOUND);
+    }
+    if (storedSession.ip !== userIp) {
       this.logger.warn(`IP mismatch detected, session deleted: ${user.id}`);
-
+      await this.accountService.deleteSession(user, userAgent);
       throw new AppException(ErrorCode.IP_MISMATCH);
     }
 
@@ -132,36 +147,26 @@ export class AuthService {
     return newTokenPair;
   }
 
-  private isSessionValid(
-    storedSession: Session | null,
-    refreshToken: string,
-    userIp: string,
-  ) {
-    if (storedSession == null) return false;
-
-    const refreshTokenMatch = refreshToken === storedSession.refreshToken;
-    const requestIpMatch = userIp === storedSession.ip;
-
-    return refreshTokenMatch && requestIpMatch;
-  }
-
   async logout(user: User, accessToken?: string, userAgent?: string) {
     if (!userAgent) {
       await this.accountService.deleteAllUserSessions(user);
       return;
     }
 
-    if (accessToken) {
-      const token = accessToken.split(' ')[1];
-      const payload = this.jwtService.decode(token) as { exp: number };
-      const remainingTime = payload.exp * 1000 - Date.now(); // ms
+    try {
+      if (accessToken) {
+        const token = accessToken.split(' ')[1];
+        const payload = this.jwtService.decode(token) as { exp: number };
+        const remainingTime = payload.exp * 1000 - Date.now(); // ms
 
-      await this.accountService.blacklistToken(token, remainingTime);
+        await this.accountService.blacklistToken(token, remainingTime);
+      }
+    } catch (err) {
+      this.logger.warn(`failed to decode access token: ${user.id}`);
+    } finally {
+      await this.accountService.deleteSession(user, userAgent);
+      this.logger.log(`user logged out: ${user.id}`);
     }
-
-    await this.accountService.deleteSession(user, userAgent);
-
-    this.logger.log(`user logged out: ${user.id}`);
   }
 
   private async issueTokenPair(user: User): Promise<{

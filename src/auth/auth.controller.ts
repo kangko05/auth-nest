@@ -53,10 +53,15 @@ export class AuthController {
     res.cookie(this.refreshTokenKey, refresh_token, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false, // WARN: this one only works under HTTPS, if this route is exposed to outer network, change this value to true
+      secure: this.isProdEnv(),
     });
 
     return { access_token };
+  }
+
+  private isProdEnv(): boolean {
+    const nodeEnv = process.env.NODE_ENV;
+    return nodeEnv === 'prod' || nodeEnv === 'production';
   }
 
   @Throttle({ default: { limit: 30 } })
@@ -78,7 +83,7 @@ export class AuthController {
     res.cookie(this.refreshTokenKey, refresh_token, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false, // WARN: if this route is exposed to outer network, change this value to true
+      secure: this.isProdEnv(),
     });
 
     return { access_token };
