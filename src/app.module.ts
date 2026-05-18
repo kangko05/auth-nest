@@ -7,10 +7,11 @@ import { AppController } from './app.controller';
 import { RedisModule } from './redis/redis.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
 import winston from 'winston';
 import { LoggingInterceptor } from './common/logging.interceptor';
+import { HttpExceptionFilter } from './common/exception.filter';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { LoggingInterceptor } from './common/logging.interceptor';
   ],
   controllers: [AppController],
   providers: [
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
   ],

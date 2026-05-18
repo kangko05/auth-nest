@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Test } from '@nestjs/testing';
 import { UsersService } from '../users/users.service';
@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { AccountService } from '../account/account.service';
 import * as bcrypt from 'bcrypt';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { AppException } from '../common/exception.filter';
 
 const mockLogger = {
   log: jest.fn(),
@@ -96,7 +97,7 @@ describe('AuthService', () => {
     it('중복 아이디', async () => {
       mockUserService.findByEmail.mockResolvedValue(createdUser);
 
-      await expect(authService.register(userDto)).rejects.toThrow(ConflictException);
+      await expect(authService.register(userDto)).rejects.toThrow(AppException);
     });
 
     it('비밀번호 해시되어 저장', async () => {
@@ -189,20 +190,20 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('refresh_token');
     });
 
-    it('세션 없으면 UnauthorizedException', async () => {
+    it('세션 없으면 AppException', async () => {
       mockAccountService.findSession.mockResolvedValue(null);
 
       await expect(
         authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1'),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow(AppException);
     });
 
-    it('토큰 불일치 시 UnauthorizedException', async () => {
+    it('토큰 불일치 시 AppException', async () => {
       mockAccountService.findSession.mockResolvedValue({ refreshToken: 'different.token' });
 
       await expect(
         authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1'),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow(AppException);
     });
 
     it('refreshToken null이면 BadRequestException', async () => {
@@ -217,12 +218,12 @@ describe('AuthService', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('IP 불일치 시 UnauthorizedException + 세션 삭제', async () => {
+    it('IP 불일치 시 AppException + 세션 삭제', async () => {
       mockAccountService.findSession.mockResolvedValue({ refreshToken: storedToken, ip: '192.168.1.1' });
 
       await expect(
         authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1'),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow(AppException);
 
       expect(mockAccountService.deleteSession).toHaveBeenCalledWith(user, 'Mozilla/5.0');
     });
@@ -338,10 +339,10 @@ describe('AuthService', () => {
       expect(mockAccountService.resetAccFailCount).toHaveBeenCalledWith(user);
     });
 
-    it('유저 없으면 NotFoundException', async () => {
+    it('유저 없으면 AppException', async () => {
       mockUserService.findByUserId.mockResolvedValue(null);
 
-      await expect(authService.unlockUserAccount('admin-id', 'non-existent')).rejects.toThrow(NotFoundException);
+      await expect(authService.unlockUserAccount('admin-id', 'non-existent')).rejects.toThrow(AppException);
     });
   });
 
@@ -355,10 +356,10 @@ describe('AuthService', () => {
       expect(result).toBe(1);
     });
 
-    it('유저 없으면 NotFoundException', async () => {
+    it('유저 없으면 AppException', async () => {
       mockUserService.updateUserBanStatus.mockResolvedValue(0);
 
-      await expect(authService.updateUserBanStatus('admin-id', 'non-existent', true)).rejects.toThrow(NotFoundException);
+      await expect(authService.updateUserBanStatus('admin-id', 'non-existent', true)).rejects.toThrow(AppException);
     });
   });
 });

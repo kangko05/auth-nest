@@ -1,10 +1,8 @@
 import * as bcrypt from 'bcrypt';
 import {
   BadRequestException,
-  ConflictException,
   Inject,
   Injectable,
-  NotFoundException,
   UnauthorizedException,
   type LoggerService,
 } from '@nestjs/common';
@@ -18,6 +16,7 @@ import { ConfigService } from '@nestjs/config';
 import { Session } from '../account/session.service';
 import { AccountService } from '../account/account.service';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { AppException, ErrorCode } from '../common/exception.filter';
 
 @Injectable()
 export class AuthService {
@@ -35,7 +34,7 @@ export class AuthService {
     const foundUser = await this.userService.findByEmail(registerDto.email);
 
     if (foundUser) {
-      throw new ConflictException('이미 사용 중인 이메일 입니다.');
+      throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
     }
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 12);
@@ -116,7 +115,7 @@ export class AuthService {
 
       this.logger.warn(`IP mismatch detected, session deleted: ${user.id}`);
 
-      throw new UnauthorizedException();
+      throw new AppException(ErrorCode.IP_MISMATCH);
     }
 
     const newTokenPair = await this.issueTokenPair(user);
@@ -189,14 +188,10 @@ export class AuthService {
     return { access_token: tokenPair[0], refresh_token: tokenPair[1] };
   }
 
-  // ● User banned by admin ${adminId}: target ${userId}
-  // User unbanned by admin ${adminId}: target ${userId}
-  // User account unlocked by admin ${adminId}: target ${userId}
-
   async unlockUserAccount(adminId: string, userId: string) {
     const foundUser = await this.userService.findByUserId(userId);
 
-    if (!foundUser) throw new NotFoundException();
+    if (!foundUser) throw new AppException(ErrorCode.USER_NOT_FOUND);
 
     await this.accountService.resetAccFailCount(foundUser);
 
@@ -215,7 +210,7 @@ export class AuthService {
       isBanned,
     );
 
-    if (affected === 0) throw new NotFoundException();
+    if (affected === 0) throw new AppException(ErrorCode.USER_NOT_FOUND);
 
     if (isBanned) {
       this.logger.warn(`user banned by admin ${adminId}: target ${userId}`);
