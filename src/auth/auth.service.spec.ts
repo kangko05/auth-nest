@@ -327,6 +327,22 @@ describe('AuthService', () => {
 
       expect(result).toBeNull();
     });
+
+    it('밴된 유저 시 null 반환', async () => {
+      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, isBanned: true });
+
+      const result = await authService.validateUser(userDto.email, userDto.password);
+
+      expect(result).toBeNull();
+    });
+
+    it('밴된 유저 시 실패 횟수 증가 안 함', async () => {
+      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, isBanned: true });
+
+      await authService.validateUser(userDto.email, userDto.password);
+
+      expect(mockAccountService.incrementAccFailCount).not.toHaveBeenCalled();
+    });
   });
 
   describe('unlockUserAccount', () => {
