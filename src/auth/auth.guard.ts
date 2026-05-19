@@ -51,3 +51,6 @@ export class RolesGuard implements CanActivate {
     return requiredRoles.includes(user.role);
   }
 }
+
+@Injectable()
+export class GoogleAuthGuard extends AuthGuard('google') {}

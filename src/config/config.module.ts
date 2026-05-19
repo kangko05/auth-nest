@@ -5,12 +5,19 @@ import databaseConfig from './database.config';
 import jwtConfig from './jwt.config';
 import redisConfig from './redis.config';
 import throttleConfig from './throttle.config';
+import googleConfig from './google.config';
 
 @Module({
   imports: [
     NestConfigModule.forRoot({
       envFilePath: `.env.${process.env.NODE_ENV ?? 'development'}`,
-      load: [databaseConfig, jwtConfig, redisConfig, throttleConfig],
+      load: [
+        databaseConfig,
+        jwtConfig,
+        redisConfig,
+        throttleConfig,
+        googleConfig,
+      ],
       isGlobal: true,
       validationSchema: Joi.object({
         JWT_SECRET: Joi.string().required(),
@@ -31,6 +38,11 @@ import throttleConfig from './throttle.config';
         THROTTLE_LIMIT: Joi.number().default(10),
 
         ALLOWED_ORIGIN: Joi.string().required(),
+
+        // oauth ==============================================================
+        GOOGLE_CLIENT_ID: Joi.string().optional(),
+        GOOGLE_CLIENT_SECRET: Joi.string().optional(),
+        GOOGLE_CALLBACK_URL: Joi.string().optional(),
       }),
     }),
   ],
