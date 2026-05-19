@@ -17,6 +17,7 @@ import {
 } from './auth.guard';
 import { RefreshStrategy } from './strategy/refresh.strategy';
 import { GoogleStrategy } from './strategy/google.strategy';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { GoogleStrategy } from './strategy/google.strategy';
     UsersModule,
     PassportModule,
     AccountModule,
+    MailModule,
   ],
   controllers: [AuthController],
   providers: [

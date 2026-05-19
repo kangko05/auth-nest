@@ -47,4 +47,15 @@ export class UsersService {
 
     return this.create(dto);
   }
+
+  async updateUserPassword(
+    id: string,
+    hashedPassword: string,
+  ): Promise<number> {
+    const result = await this.userRepository.update(id, {
+      password: hashedPassword,
+    });
+
+    return result.affected ?? 0;
+  }
 }

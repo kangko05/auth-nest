@@ -29,6 +29,18 @@ export class AccountService {
     this.lockService = new LockService(this.redisClient, this.logger);
   }
 
+  async saveResetPasswordToken(email: string, token: string) {
+    await this.redisClient.set(`password-reset:${token}`, email, 'EX', 60 * 15);
+  }
+
+  async getResetPasswordToken(token: string): Promise<string | null> {
+    return this.redisClient.get(`password-reset:${token}`);
+  }
+
+  async deleteResetPasswordToken(token: string) {
+    await this.redisClient.del(`password-reset:${token}`);
+  }
+
   // session services ==============================
   async createSession(
     user: User,

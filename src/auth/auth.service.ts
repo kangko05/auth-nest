@@ -3,10 +3,11 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
   type LoggerService,
 } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
 import { UserCreatedDto } from '../users/dto/user-response.dto';
@@ -17,6 +18,7 @@ import { Session } from '../account/session.service';
 import { AccountService } from '../account/account.service';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppException, ErrorCode } from '../common/exception.filter';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +27,7 @@ export class AuthService {
     private readonly userService: UsersService,
     private readonly jwtService: JwtService,
     private readonly accountService: AccountService,
+    private readonly mailService: MailService,
 
     @Inject(WINSTON_MODULE_NEST_PROVIDER)
     private readonly logger: LoggerService,
@@ -224,5 +227,45 @@ export class AuthService {
     }
 
     return affected;
+  }
+
+  async resetPassword(email: string) {
+    const foundUser = await this.userService.findByEmail(email);
+
+    if (!foundUser) return;
+
+    const token = randomBytes(32).toString('hex');
+
+    await this.accountService.saveResetPasswordToken(email, token);
+    await this.mailService.sendPasswordResetEmail(email, token);
+  }
+
+  async confirmResetPassword(token: string, newPassword: string) {
+    if (token.length !== 64) throw new AppException(ErrorCode.INVALID_TOKEN);
+
+    const email = await this.accountService.getResetPasswordToken(token);
+
+    if (!email) {
+      throw new AppException(ErrorCode.INVALID_TOKEN);
+    }
+
+    const foundUser = await this.userService.findByEmail(email);
+
+    if (!foundUser) {
+      throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    const affected = await this.userService.updateUserPassword(
+      foundUser.id,
+      hashedPassword,
+    );
+
+    if (affected === 0) {
+      throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
+
+    await this.accountService.deleteResetPasswordToken(token);
   }
 }

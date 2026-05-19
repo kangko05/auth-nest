@@ -9,6 +9,7 @@ import {
   HttpCode,
   Put,
   Param,
+  Query,
   Get,
 } from '@nestjs/common';
 import type { Response, Request } from 'express';
@@ -33,6 +34,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { LoginUserDto } from './dto/login-user.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -125,6 +127,38 @@ export class AuthController {
       req.headers.authorization,
       req.headers['user-agent'],
     );
+  }
+
+  @ApiOperation({ summary: '비밀번호 재설정' })
+  @ApiBody({ type: ResetPasswordDto })
+  @Post('/password-reset/request')
+  async resetPassword(@Body() body: { email: string }) {
+    await this.authService.resetPassword(body.email);
+  }
+
+  @Get('/password-reset/confirm')
+  async getResetPassword(@Query('token') token: string, @Res() res: Response) {
+    res.send(`
+<html>
+    <body>
+      <form action="/auth/password-reset/confirm" method="POST">
+        <input type="hidden" name="token" value="${token}" />
+        <label>새 비밀번호</label>
+        <input type="password" name="newPassword" required />
+        <button type="submit">변경</button>
+      </form>
+    </body>
+  </html>
+             `);
+  }
+
+  @Post('/password-reset/confirm')
+  async confirmResetPassword(
+    @Body() body: { token: string; newPassword: string },
+    @Res() res: Response,
+  ) {
+    await this.authService.confirmResetPassword(body.token, body.newPassword);
+    res.send(`<html><body><p>비밀번호가 재설정되었습니다.</p></body></html>`);
   }
 
   // admin routes ==============================================================

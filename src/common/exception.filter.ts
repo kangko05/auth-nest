@@ -47,6 +47,11 @@ export const ErrorCode = {
     status: 409,
     message: '이미 사용 중인 이메일입니다.',
   },
+  INVALID_TOKEN: {
+    code: 'INVALID_TOKEN',
+    status: 400,
+    message: '유효하지 않거나 만료된 토큰입니다.',
+  },
 } as const;
 
 type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
