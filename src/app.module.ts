@@ -13,6 +13,7 @@ import winston from 'winston';
 import { LoggingInterceptor } from './common/logging.interceptor';
 import { HttpExceptionFilter } from './common/exception.filter';
 import { HealthModule } from './health/health.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { HealthModule } from './health/health.module';
     AuthModule,
     RedisModule,
     HealthModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [

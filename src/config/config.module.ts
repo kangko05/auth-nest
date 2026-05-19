@@ -6,6 +6,7 @@ import jwtConfig from './jwt.config';
 import redisConfig from './redis.config';
 import throttleConfig from './throttle.config';
 import googleConfig from './google.config';
+import mailConfig from './mail.config';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import googleConfig from './google.config';
         redisConfig,
         throttleConfig,
         googleConfig,
+        mailConfig,
       ],
       isGlobal: true,
       validationSchema: Joi.object({
@@ -43,6 +45,10 @@ import googleConfig from './google.config';
         GOOGLE_CLIENT_ID: Joi.string().optional(),
         GOOGLE_CLIENT_SECRET: Joi.string().optional(),
         GOOGLE_CALLBACK_URL: Joi.string().optional(),
+
+        // mailer (gmail) =====================================================
+        MAIL_USER: Joi.string().optional(),
+        MAIL_PASS: Joi.string().optional(),
       }),
     }),
   ],

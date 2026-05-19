@@ -8,6 +8,7 @@ import { AccountService } from '../account/account.service';
 import * as bcrypt from 'bcrypt';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppException } from '../common/exception.filter';
+import { MailService } from '../mail/mail.service';
 
 const mockLogger = {
   log: jest.fn(),
@@ -47,6 +48,13 @@ const mockAccountService = {
   isAccountLocked: jest.fn(),
   incrementAccFailCount: jest.fn(),
   resetAccFailCount: jest.fn(),
+  saveResetPasswordToken: jest.fn(),
+  getResetPasswordToken: jest.fn(),
+  deleteResetPasswordToken: jest.fn(),
+};
+
+const mockMailService = {
+  sendPasswordResetEmail: jest.fn(),
 };
 
 const user = {
@@ -75,6 +83,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJWTService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: AccountService, useValue: mockAccountService },
+        { provide: MailService, useValue: mockMailService },
         { provide: WINSTON_MODULE_NEST_PROVIDER, useValue: mockLogger },
       ],
     }).compile();
@@ -342,6 +351,50 @@ describe('AuthService', () => {
       await authService.validateUser(userDto.email, userDto.password);
 
       expect(mockAccountService.incrementAccFailCount).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('confirmResetPassword', () => {
+    const validToken = 'a'.repeat(64);
+    const newPassword = 'NewPass123!';
+
+    beforeEach(() => {
+      mockUserService.updateUserPassword = jest.fn();
+    });
+
+    it('정상 비밀번호 변경', async () => {
+      mockAccountService.getResetPasswordToken.mockResolvedValue('test@test.com');
+      mockUserService.findByEmail.mockResolvedValue(user);
+      mockUserService.updateUserPassword.mockResolvedValue(1);
+      mockAccountService.deleteResetPasswordToken.mockResolvedValue(undefined);
+
+      await authService.confirmResetPassword(validToken, newPassword);
+
+      expect(mockUserService.updateUserPassword).toHaveBeenCalled();
+      expect(mockAccountService.deleteResetPasswordToken).toHaveBeenCalledWith(validToken);
+    });
+
+    it('토큰 길이 64자 아니면 AppException', async () => {
+      await expect(
+        authService.confirmResetPassword('short-token', newPassword),
+      ).rejects.toThrow(AppException);
+    });
+
+    it('만료된 토큰이면 AppException', async () => {
+      mockAccountService.getResetPasswordToken.mockResolvedValue(null);
+
+      await expect(
+        authService.confirmResetPassword(validToken, newPassword),
+      ).rejects.toThrow(AppException);
+    });
+
+    it('유저 없으면 AppException', async () => {
+      mockAccountService.getResetPasswordToken.mockResolvedValue('test@test.com');
+      mockUserService.findByEmail.mockResolvedValue(null);
+
+      await expect(
+        authService.confirmResetPassword(validToken, newPassword),
+      ).rejects.toThrow(AppException);
     });
   });
 
