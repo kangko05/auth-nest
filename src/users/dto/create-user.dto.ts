@@ -10,3 +10,14 @@ export class CreateUserDto {
   })
   password: string;
 }
+
+export class CreateOauthUserDto {
+  @IsEmail()
+  email: string;
+
+  @IsNotEmpty()
+  provider: string;
+
+  @IsNotEmpty()
+  providerId: string;
+}

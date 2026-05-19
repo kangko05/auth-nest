@@ -28,6 +28,12 @@ export class User {
   @Column({ default: false })
   isBanned: boolean;
 
+  @Column({ nullable: true })
+  provider: string;
+
+  @Column({ nullable: true })
+  providerId: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

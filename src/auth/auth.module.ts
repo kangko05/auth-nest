@@ -9,8 +9,14 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { LocalStrategy } from './strategy/local.strategy';
 import { JwtStrategy } from './strategy/jwt.strategy';
-import { JwtAuthGuard, LocalAuthGuard, RefreshGuard } from './auth.guard';
+import {
+  GoogleAuthGuard,
+  JwtAuthGuard,
+  LocalAuthGuard,
+  RefreshGuard,
+} from './auth.guard';
 import { RefreshStrategy } from './strategy/refresh.strategy';
+import { GoogleStrategy } from './strategy/google.strategy';
 
 @Module({
   imports: [
@@ -35,6 +41,8 @@ import { RefreshStrategy } from './strategy/refresh.strategy';
     JwtAuthGuard,
     RefreshStrategy,
     RefreshGuard,
+    GoogleAuthGuard,
+    GoogleStrategy,
   ],
   exports: [JwtAuthGuard],
 })

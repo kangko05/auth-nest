@@ -9,11 +9,13 @@ import {
   HttpCode,
   Put,
   Param,
+  Get,
 } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { AuthService } from './auth.service';
 import {
+  GoogleAuthGuard,
   JwtAuthGuard,
   LocalAuthGuard,
   RefreshGuard,
@@ -139,5 +141,33 @@ export class AuthController {
       false,
     );
     return { affected };
+  }
+
+  // oauth ====================================================================
+  @UseGuards(GoogleAuthGuard)
+  @Get('google')
+  googleLogin() {}
+
+  @UseGuards(GoogleAuthGuard)
+  @Get('google/callback')
+  async googleCallback(
+    @CurrentUser() user: User,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const userAgent = req.headers['user-agent'];
+    const { access_token, refresh_token } = await this.authService.login(
+      user,
+      req.ip,
+      userAgent,
+    );
+
+    res.cookie(this.refreshTokenKey, refresh_token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: this.isProdEnv(),
+    });
+
+    return { access_token };
   }
 }
