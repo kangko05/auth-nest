@@ -25,19 +25,35 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Throttle } from '@nestjs/throttler';
 import { Roles } from './decorators/roles.decorator';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { LoginUserDto } from './dto/login-user.dto';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   private readonly refreshTokenKey = 'refresh_token';
 
   constructor(private readonly authService: AuthService) {}
 
+  @ApiOperation({ summary: '회원가입' })
+  @ApiResponse({ status: 201, description: '가입 성공' })
+  @ApiResponse({ status: 409, description: '이메일 중복' })
   @Post('register')
   register(@Body() registerDto: CreateUserDto) {
     return this.authService.register(registerDto);
   }
 
   // ==========================================================================
+  @ApiOperation({ summary: '로그인' })
+  @ApiBody({ type: LoginUserDto })
+  @ApiResponse({ status: 200, description: 'access_token 반환' })
+  @ApiResponse({ status: 401, description: '이메일 또는 비밀번호 불일치' })
   @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(
@@ -91,6 +107,9 @@ export class AuthController {
     return { access_token };
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '로그아웃' })
+  @ApiResponse({ status: 204 })
   @Throttle({ default: { limit: 10 } })
   @HttpCode(204)
   @UseGuards(JwtAuthGuard)
@@ -109,6 +128,8 @@ export class AuthController {
   }
 
   // admin routes ==============================================================
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '계정 일시 잠금 해제' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Put('/unlock/:userId')
@@ -119,6 +140,8 @@ export class AuthController {
     await this.authService.unlockUserAccount(admin.id, userId);
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '계정 영구 잠금' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Put('/ban/:userId')
@@ -131,6 +154,8 @@ export class AuthController {
     return { affected };
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '계정 영구 잠금 해제' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Delete('/ban/:userId')

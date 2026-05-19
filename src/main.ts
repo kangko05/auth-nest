@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { WinstonModule } from 'nest-winston';
 import winston from 'winston';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -20,6 +21,18 @@ async function bootstrap() {
       ],
     }),
   });
+
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('auth-nest')
+      .setDescription('auth api')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api', app, document);
+  }
 
   app.use(cookieParser());
   app.useGlobalPipes(
