@@ -18,6 +18,10 @@ import {
 import { RefreshStrategy } from './strategy/refresh.strategy';
 import { GoogleStrategy } from './strategy/google.strategy';
 import { MailModule } from '../mail/mail.module';
+import {
+  makeCounterProvider,
+  makeGaugeProvider,
+} from '@willsoto/nestjs-prometheus';
 
 @Module({
   imports: [
@@ -45,6 +49,20 @@ import { MailModule } from '../mail/mail.module';
     RefreshGuard,
     GoogleAuthGuard,
     GoogleStrategy,
+    makeCounterProvider({
+      name: 'auth_login_total',
+      help: '로그인 시도 횟수',
+      labelNames: ['status'],
+    }),
+    makeCounterProvider({
+      name: 'auth_register_total',
+      help: '회원가입 횟수',
+      labelNames: ['status'],
+    }),
+    makeGaugeProvider({
+      name: 'auth_active_sessions_total',
+      help: '현재 활성 세션 수',
+    }),
   ],
   exports: [JwtAuthGuard],
 })

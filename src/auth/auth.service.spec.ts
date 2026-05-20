@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppException } from '../common/exception.filter';
 import { MailService } from '../mail/mail.service';
+import { getToken } from '@willsoto/nestjs-prometheus';
 
 const mockLogger = {
   log: jest.fn(),
@@ -85,6 +86,9 @@ describe('AuthService', () => {
         { provide: AccountService, useValue: mockAccountService },
         { provide: MailService, useValue: mockMailService },
         { provide: WINSTON_MODULE_NEST_PROVIDER, useValue: mockLogger },
+        { provide: getToken('auth_login_total'), useValue: { inc: jest.fn() } },
+        { provide: getToken('auth_register_total'), useValue: { inc: jest.fn() } },
+        { provide: getToken('auth_active_sessions_total'), useValue: { inc: jest.fn(), dec: jest.fn() } },
       ],
     }).compile();
 
