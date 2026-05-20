@@ -14,6 +14,7 @@ import { LoggingInterceptor } from './common/logging.interceptor';
 import { HttpExceptionFilter } from './common/exception.filter';
 import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
+import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 
 @Module({
   imports: [
@@ -46,6 +47,9 @@ import { MailModule } from './mail/mail.module';
     RedisModule,
     HealthModule,
     MailModule,
+    PrometheusModule.register({
+      defaultMetrics: { enabled: true },
+    }),
   ],
   controllers: [AppController],
   providers: [

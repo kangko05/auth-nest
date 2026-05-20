@@ -3,7 +3,6 @@ import {
   BadRequestException,
   Inject,
   Injectable,
-  NotFoundException,
   UnauthorizedException,
   type LoggerService,
 } from '@nestjs/common';
@@ -14,11 +13,12 @@ import { UserCreatedDto } from '../users/dto/user-response.dto';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
-import { Session } from '../account/session.service';
 import { AccountService } from '../account/account.service';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppException, ErrorCode } from '../common/exception.filter';
 import { MailService } from '../mail/mail.service';
+import { InjectMetric } from '@willsoto/nestjs-prometheus';
+import { Gauge, Counter } from 'prom-client';
 
 @Injectable()
 export class AuthService {
@@ -31,12 +31,19 @@ export class AuthService {
 
     @Inject(WINSTON_MODULE_NEST_PROVIDER)
     private readonly logger: LoggerService,
+
+    @InjectMetric('auth_login_total') private loginCounter: Counter<string>,
+    @InjectMetric('auth_register_total')
+    private registerCounter: Counter<string>,
+    @InjectMetric('auth_active_sessions_total')
+    private activeSessions: Gauge<string>,
   ) {}
 
   async register(registerDto: CreateUserDto): Promise<UserCreatedDto> {
     const foundUser = await this.userService.findByEmail(registerDto.email);
 
     if (foundUser) {
+      this.registerCounter.inc({ status: 'duplicate' });
       throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
     }
 
@@ -46,6 +53,8 @@ export class AuthService {
       ...registerDto,
       password: hashedPassword,
     });
+
+    this.registerCounter.inc({ status: 'success' });
 
     return { email: createdUser.email, createdAt: createdUser.createdAt };
   }
@@ -58,11 +67,13 @@ export class AuthService {
         await this.accountService.isAccountLocked(foundUser);
 
       if (accountLocked) {
+        this.loginCounter.inc({ status: 'locked' });
         this.logger.warn(`login attempt on locked account: ${email}`);
         return null;
       }
 
       if (foundUser.isBanned) {
+        this.loginCounter.inc({ status: 'banned' });
         this.logger.warn(`login detected from banned user: ${email}`);
 
         return null;
@@ -92,7 +103,10 @@ export class AuthService {
     userIp?: string,
     userAgent?: string,
   ): Promise<{ access_token: string; refresh_token: string }> {
-    if (!userAgent || !userIp) throw new UnauthorizedException();
+    if (!userAgent || !userIp) {
+      this.loginCounter.inc({ status: 'failed' });
+      throw new UnauthorizedException();
+    }
 
     const tokenPair = await this.issueTokenPair(user);
 
@@ -103,6 +117,8 @@ export class AuthService {
       userIp,
     );
 
+    this.activeSessions.inc();
+    this.loginCounter.inc({ status: 'success' });
     this.logger.log(`user logged in: ${user.id}`);
 
     return tokenPair;
@@ -168,6 +184,7 @@ export class AuthService {
       this.logger.warn(`failed to decode access token: ${user.id}`);
     } finally {
       await this.accountService.deleteSession(user, userAgent);
+      this.activeSessions.dec();
       this.logger.log(`user logged out: ${user.id}`);
     }
   }
