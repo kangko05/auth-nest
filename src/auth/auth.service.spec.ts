@@ -75,9 +75,10 @@ const createdUser = {
 
 describe('AuthService', () => {
   let authService: AuthService;
+  let module: any;
 
   beforeEach(async () => {
-    const module = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UsersService, useValue: mockUserService },
@@ -355,6 +356,44 @@ describe('AuthService', () => {
       await authService.validateUser(userDto.email, userDto.password);
 
       expect(mockAccountService.incrementAccFailCount).not.toHaveBeenCalled();
+    });
+
+    it('비밀번호 불일치 시 failed 카운터 증가', async () => {
+      const hashedPassword = await bcrypt.hash('wrongpassword', 12);
+      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, password: hashedPassword });
+
+      await authService.validateUser(userDto.email, userDto.password);
+
+      const loginCounter = module.get(getToken('auth_login_total'));
+      expect(loginCounter.inc).toHaveBeenCalledWith({ status: 'failed' });
+    });
+
+    it('유저 없을 시 failed 카운터 증가', async () => {
+      mockUserService.findByEmail.mockResolvedValue(null);
+
+      await authService.validateUser(userDto.email, userDto.password);
+
+      const loginCounter = module.get(getToken('auth_login_total'));
+      expect(loginCounter.inc).toHaveBeenCalledWith({ status: 'failed' });
+    });
+
+    it('잠긴 계정 시 locked 카운터 증가', async () => {
+      mockAccountService.isAccountLocked.mockResolvedValue(true);
+      mockUserService.findByEmail.mockResolvedValue(createdUser);
+
+      await authService.validateUser(userDto.email, userDto.password);
+
+      const loginCounter = module.get(getToken('auth_login_total'));
+      expect(loginCounter.inc).toHaveBeenCalledWith({ status: 'locked' });
+    });
+
+    it('밴된 유저 시 banned 카운터 증가', async () => {
+      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, isBanned: true });
+
+      await authService.validateUser(userDto.email, userDto.password);
+
+      const loginCounter = module.get(getToken('auth_login_total'));
+      expect(loginCounter.inc).toHaveBeenCalledWith({ status: 'banned' });
     });
   });
 

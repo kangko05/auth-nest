@@ -86,13 +86,15 @@ export class AuthService {
 
       if (!passwordMatched) {
         await this.accountService.incrementAccFailCount(foundUser);
-
+        this.loginCounter.inc({ status: 'failed' });
         this.logger.warn(`login failed: ${email}`);
 
         return null;
       }
 
       await this.accountService.resetAccFailCount(foundUser);
+    } else {
+      this.loginCounter.inc({ status: 'failed' });
     }
 
     return foundUser;
