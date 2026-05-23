@@ -1,4 +1,4 @@
-# auth-nest2
+# auth-nest
 
 NestJS 기반 독립 인증 서버. 다른 서비스가 인증을 위임할 수 있는 구조를 목표로 한다.
 
@@ -52,7 +52,7 @@ REDIS_HOST, REDIS_PORT
 
 | 문서 | 설명 |
 |---|---|
-| [포트폴리오](docs/portfolio.md) | 프로젝트 개요, 핵심 문제 해결 과정, 구현 기능 목록 |
+| [overview](docs/overview.md) | 프로젝트 개요, 핵심 문제 해결 과정, 구현 기능 목록 |
 | [기능 명세](docs/feature-spec.md) | 엔드포인트별 기능 설명, 설계 결정, 트레이드오프 |
 | [기술 명세](docs/tech-spec.md) | 아키텍처, 데이터 모델, 보안 정책, 에러 코드 |
 | [설정](docs/config-setup.md) | CORS, Helmet, ValidationPipe, 환경변수 검증 |
