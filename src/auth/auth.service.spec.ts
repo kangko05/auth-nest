@@ -410,11 +410,37 @@ describe('AuthService', () => {
       mockUserService.findByEmail.mockResolvedValue(user);
       mockUserService.updateUserPassword.mockResolvedValue(1);
       mockAccountService.deleteResetPasswordToken.mockResolvedValue(undefined);
+      mockAccountService.deleteAllUserSessions.mockResolvedValue(undefined);
 
       await authService.confirmResetPassword(validToken, newPassword);
 
       expect(mockUserService.updateUserPassword).toHaveBeenCalled();
       expect(mockAccountService.deleteResetPasswordToken).toHaveBeenCalledWith(validToken);
+    });
+
+    it('비밀번호 변경 성공 시 전체 세션 삭제 호출', async () => {
+      mockAccountService.getResetPasswordToken.mockResolvedValue('test@test.com');
+      mockUserService.findByEmail.mockResolvedValue(user);
+      mockUserService.updateUserPassword.mockResolvedValue(1);
+      mockAccountService.deleteResetPasswordToken.mockResolvedValue(undefined);
+      mockAccountService.deleteAllUserSessions.mockResolvedValue(undefined);
+
+      await authService.confirmResetPassword(validToken, newPassword);
+
+      expect(mockAccountService.deleteAllUserSessions).toHaveBeenCalledWith(user);
+    });
+
+    it('세션/토큰 정리 실패 시 InternalServerErrorException', async () => {
+      mockAccountService.getResetPasswordToken.mockResolvedValue('test@test.com');
+      mockUserService.findByEmail.mockResolvedValue(user);
+      mockUserService.updateUserPassword.mockResolvedValue(1);
+      mockAccountService.deleteResetPasswordToken.mockRejectedValue(new Error('redis error'));
+
+      await expect(
+        authService.confirmResetPassword(validToken, newPassword),
+      ).rejects.toThrow();
+
+      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('토큰 길이 64자 아니면 AppException', async () => {

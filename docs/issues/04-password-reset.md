@@ -61,9 +61,35 @@ await this.accountService.deleteResetPasswordToken(token);
 
 비밀번호 변경 성공 후 토큰을 즉시 삭제해 재사용을 방지한다.
 
+### 기존 세션 및 토큰 무효화
+
+비밀번호 재설정 성공 시 기존에 발급된 모든 토큰을 무효화해야 한다. 공격자가 access token을 탈취한 상태에서 피해자가 비밀번호를 바꿔도 탈취된 토큰이 만료 전까지 유효한 채로 남는 문제가 있기 때문이다.
+
+**세션 삭제 (refresh token 차단)**
+
+```typescript
+await this.accountService.deleteAllUserSessions(foundUser);
+```
+
+Redis에 저장된 전체 세션을 삭제해 기존 refresh token을 즉시 무효화한다.
+
+**tokenValidAfter 갱신 (access token 차단)**
+
+```typescript
+// updateUserPassword 내부
+await this.userRepository.update(id, {
+  password: hashedPassword,
+  tokenValidAfter: new Date(),
+});
+```
+
+`User` 엔티티의 `tokenValidAfter`를 현재 시각으로 갱신한다. `JwtStrategy.validate()`에서 토큰의 `iat`와 비교해 재설정 이전에 발급된 access token은 전부 401 처리된다.
+
+블랙리스트는 로그아웃 이벤트가 있는 토큰만 차단 가능하지만, `tokenValidAfter`는 시각 기준으로 이전 토큰을 일괄 차단하므로 탈취된 토큰이 몇 개든 한 번에 무효화된다.
+
 ---
 
 ## 결과
 
-이메일 수신 가능 여부로 신원을 검증하고, 토큰 TTL과 즉시 삭제로 탈취 및 재사용 위험을 최소화했다.
+이메일 수신 가능 여부로 신원을 검증하고, 토큰 TTL과 즉시 삭제로 탈취 및 재사용 위험을 최소화했다. 비밀번호 재설정 성공 시 전체 세션 삭제와 `tokenValidAfter` 갱신으로 기존에 발급된 refresh token과 access token을 모두 무효화한다.
 

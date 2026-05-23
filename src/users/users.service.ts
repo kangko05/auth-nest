@@ -54,6 +54,7 @@ export class UsersService {
   ): Promise<number> {
     const result = await this.userRepository.update(id, {
       password: hashedPassword,
+      tokenValidAfter: new Date(),
     });
 
     return result.affected ?? 0;

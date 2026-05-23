@@ -111,20 +111,23 @@ if (storedSession.ip !== userIp) {
 
 ---
 
-### 5. Access Token 탈취 (블랙리스트)
+### 5. Access Token 탈취 (블랙리스트 + tokenValidAfter)
 
 **시나리오**
 
-로그아웃 후에도 탈취된 access token이 만료 전까지 유효. stateless 특성상 서버가 발급 후 취소할 수단이 없다.
+로그아웃 후에도 탈취된 access token이 만료 전까지 유효. stateless 특성상 서버가 발급 후 취소할 수단이 없다. 비밀번호를 재설정해도 이미 탈취된 access token은 만료 전까지 유효한 채로 남는다.
 
 **검토한 방법들**
 
 - access token 수명을 매우 짧게(1~5분) 유지 → 탈취 피해 시간 최소화. 완전한 즉시 무효화는 불가
-- 블랙리스트 방식 → 로그아웃 시 즉시 무효화 가능. 매 요청마다 Redis 조회 추가
+- 블랙리스트 방식 → 로그아웃 시 즉시 무효화 가능. 단, 로그아웃 이벤트가 없는 탈취 토큰은 차단 불가
+- tokenValidAfter → 유저 단위로 "이 시각 이전 토큰은 전부 무효" 기준점 설정. 비밀번호 재설정 시 일괄 차단 가능
 
 **대응**
 
-두 방법 병행. 로그아웃 시 access token을 Redis 블랙리스트에 남은 TTL로 등록. `JwtAuthGuard`에서 서명 검증 후 블랙리스트 조회.
+두 방식 병행.
+
+**블랙리스트** — 로그아웃 이벤트가 있는 토큰 즉시 차단:
 
 ```typescript
 // 로그아웃 시
@@ -136,6 +139,22 @@ await this.accountService.blacklistToken(token, remainingTime);
 if (token && (await this.accountService.isBlacklisted(token)))
   throw new AppException(ErrorCode.TOKEN_BLACKLISTED);
 ```
+
+**tokenValidAfter** — 비밀번호 재설정 시 기존 토큰 일괄 차단:
+
+```typescript
+// 비밀번호 재설정 시
+await this.userRepository.update(id, {
+  password: hashedPassword,
+  tokenValidAfter: new Date(),
+});
+
+// JwtStrategy.validate()
+if (user.tokenValidAfter && payload.iat < user.tokenValidAfter.getTime() / 1000)
+  throw new UnauthorizedException();
+```
+
+블랙리스트는 개별 토큰을 키로 저장하는 구조라 탈취된 토큰을 직접 등록할 수 없다. `tokenValidAfter`는 시각 기준으로 이전 토큰을 일괄 차단하므로 탈취된 토큰이 몇 개든 한 번에 무효화된다.
 
 TTL이 지나면 Redis에서 자동 삭제 → 만료된 토큰은 어차피 서명 검증에서 거부되므로 저장 불필요.
 
@@ -192,6 +211,7 @@ payload에 `sub`(userId), `role`, `jti`만 포함. 이메일, 비밀번호 등 �
 | 3 | Refresh Token 재사용 감지 | ✅ |
 | 4 | IP 불일치 감지 | ✅ |
 | 5 | Access Token 블랙리스트 | ✅ |
+| 5-1 | 비밀번호 재설정 후 Access Token 무효화 (tokenValidAfter) | ✅ |
 | 6 | 세션 고정 | ✅ (구조적으로 방어) |
 | 7 | Race Condition | ❌ (미구현) |
 | 8 | 페이로드 노출 | ✅ (민감 정보 미포함) |
