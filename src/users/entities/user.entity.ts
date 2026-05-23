@@ -39,4 +39,7 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ type: 'datetime', nullable: true })
+  tokenValidAfter: Date | null;
 }

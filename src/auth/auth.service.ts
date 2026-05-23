@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   UnauthorizedException,
   type LoggerService,
 } from '@nestjs/common';
@@ -285,6 +286,18 @@ export class AuthService {
       throw new AppException(ErrorCode.USER_NOT_FOUND);
     }
 
-    await this.accountService.deleteResetPasswordToken(token);
+    try {
+      await Promise.all([
+        this.accountService.deleteResetPasswordToken(token),
+        this.accountService.deleteAllUserSessions(foundUser),
+      ]);
+    } catch (err) {
+      this.logger.error(
+        `session/token cleanup failed after password reset: ${foundUser.id}`,
+        err,
+      );
+
+      throw new InternalServerErrorException();
+    }
   }
 }

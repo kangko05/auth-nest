@@ -3,9 +3,11 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
+import { Redis } from 'ioredis';
 import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
 import { DATA_SOURCE } from '../src/database/constants';
+import { REDIS_CLIENT } from '../src/redis/constants';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -394,6 +396,82 @@ describe('RBAC (e2e)', () => {
       .expect(({ body }) => {
         expect(body.errorCode).toBe('USER_NOT_FOUND');
       });
+  });
+});
+
+describe('PasswordReset (e2e)', () => {
+  let app: INestApplication<App>;
+  let dataSource: DataSource;
+  let redisClient: Redis;
+
+  const dto = { email: 'pwreset@test.com', password: 'Test1234!' };
+  const testAgent = 'Mozilla/5.0 (Test)';
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    app.use(cookieParser());
+    app.useGlobalPipes(new ValidationPipe());
+    await app.init();
+
+    dataSource = app.get<DataSource>(DATA_SOURCE);
+    redisClient = app.get<Redis>(REDIS_CLIENT);
+
+    await request(app.getHttpServer()).post('/auth/register').send(dto);
+  });
+
+  afterAll(async () => {
+    await dataSource.query(`DELETE FROM \`user\` WHERE email = '${dto.email}'`);
+    await app.close();
+  });
+
+  it('비밀번호 재설정 후 기존 access token 401', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('User-Agent', testAgent)
+      .send(dto);
+
+    const oldAccessToken = loginRes.body.access_token;
+
+    const resetToken = 'a'.repeat(64);
+    await redisClient.set(`password-reset:${resetToken}`, dto.email, 'EX', 900);
+
+    await request(app.getHttpServer())
+      .post('/auth/password-reset/confirm')
+      .send({ token: resetToken, newPassword: 'NewPass1234!' })
+      .expect(201);
+
+    return request(app.getHttpServer())
+      .delete('/auth/logout')
+      .set('User-Agent', testAgent)
+      .set('Authorization', `Bearer ${oldAccessToken}`)
+      .expect(401);
+  });
+
+  it('비밀번호 재설정 후 기존 refresh token으로 갱신 시 401', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('User-Agent', testAgent)
+      .send({ ...dto, password: 'NewPass1234!' });
+
+    const oldCookies = loginRes.headers['set-cookie'];
+
+    const resetToken = 'b'.repeat(64);
+    await redisClient.set(`password-reset:${resetToken}`, dto.email, 'EX', 900);
+
+    await request(app.getHttpServer())
+      .post('/auth/password-reset/confirm')
+      .send({ token: resetToken, newPassword: 'Test1234!' })
+      .expect(201);
+
+    return request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('User-Agent', testAgent)
+      .set('Cookie', oldCookies)
+      .expect(401);
   });
 });
 
