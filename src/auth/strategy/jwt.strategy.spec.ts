@@ -55,28 +55,41 @@ describe('JwtStrategy', () => {
   });
 
   it('tokenValidAfter null이면 통과', async () => {
-    mockUsersService.findByUserId.mockResolvedValue({ ...baseUser, tokenValidAfter: null });
+    mockUsersService.findByUserId.mockResolvedValue({
+      ...baseUser,
+      tokenValidAfter: null,
+    });
 
     await expect(jwtStrategy.validate(basePayload)).resolves.not.toThrow();
   });
 
   it('iat가 tokenValidAfter 이후면 통과', async () => {
     const past = new Date(Date.now() - 60 * 1000); // 1분 전
-    mockUsersService.findByUserId.mockResolvedValue({ ...baseUser, tokenValidAfter: past });
+    mockUsersService.findByUserId.mockResolvedValue({
+      ...baseUser,
+      tokenValidAfter: past,
+    });
 
     await expect(jwtStrategy.validate(basePayload)).resolves.not.toThrow();
   });
 
   it('iat가 tokenValidAfter 이전이면 UnauthorizedException', async () => {
     const future = new Date(Date.now() + 60 * 1000); // 1분 후
-    mockUsersService.findByUserId.mockResolvedValue({ ...baseUser, tokenValidAfter: future });
+    mockUsersService.findByUserId.mockResolvedValue({
+      ...baseUser,
+      tokenValidAfter: future,
+    });
 
-    await expect(jwtStrategy.validate(basePayload)).rejects.toThrow(UnauthorizedException);
+    await expect(jwtStrategy.validate(basePayload)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('유저 없으면 AppException', async () => {
     mockUsersService.findByUserId.mockResolvedValue(null);
 
-    await expect(jwtStrategy.validate(basePayload)).rejects.toThrow(AppException);
+    await expect(jwtStrategy.validate(basePayload)).rejects.toThrow(
+      AppException,
+    );
   });
 });

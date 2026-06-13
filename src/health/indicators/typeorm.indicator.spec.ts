@@ -26,7 +26,10 @@ describe('TypeOrmHealthIndicator', () => {
     const module = await Test.createTestingModule({
       providers: [
         TypeOrmHealthIndicator,
-        { provide: HealthIndicatorService, useValue: mockHealthIndicatorService },
+        {
+          provide: HealthIndicatorService,
+          useValue: mockHealthIndicatorService,
+        },
         { provide: DATA_SOURCE, useValue: mockDataSource },
       ],
     }).compile();
@@ -50,6 +53,8 @@ describe('TypeOrmHealthIndicator', () => {
     const result = await indicator.pingCheck('typeOrm');
 
     expect(result).toBe(downResult);
-    expect(mockIndicator.down).toHaveBeenCalledWith({ message: 'connection refused' });
+    expect(mockIndicator.down).toHaveBeenCalledWith({
+      message: 'connection refused',
+    });
   });
 });

@@ -88,8 +88,14 @@ describe('AuthService', () => {
         { provide: MailService, useValue: mockMailService },
         { provide: WINSTON_MODULE_NEST_PROVIDER, useValue: mockLogger },
         { provide: getToken('auth_login_total'), useValue: { inc: jest.fn() } },
-        { provide: getToken('auth_register_total'), useValue: { inc: jest.fn() } },
-        { provide: getToken('auth_active_sessions_total'), useValue: { inc: jest.fn(), dec: jest.fn() } },
+        {
+          provide: getToken('auth_register_total'),
+          useValue: { inc: jest.fn() },
+        },
+        {
+          provide: getToken('auth_active_sessions_total'),
+          useValue: { inc: jest.fn(), dec: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -151,7 +157,11 @@ describe('AuthService', () => {
     });
 
     it('access_token, refresh_token 반환', async () => {
-      const result = await authService.login(user as any, '127.0.0.1', 'Mozilla/5.0');
+      const result = await authService.login(
+        user as any,
+        '127.0.0.1',
+        'Mozilla/5.0',
+      );
 
       expect(result).toHaveProperty('access_token');
       expect(result).toHaveProperty('refresh_token');
@@ -196,9 +206,17 @@ describe('AuthService', () => {
     });
 
     it('정상 갱신 - 새 토큰 반환', async () => {
-      mockAccountService.findSession.mockResolvedValue({ refreshToken: storedToken, ip: '127.0.0.1' });
+      mockAccountService.findSession.mockResolvedValue({
+        refreshToken: storedToken,
+        ip: '127.0.0.1',
+      });
 
-      const result = await authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1');
+      const result = await authService.refresh(
+        user as any,
+        storedToken,
+        'Mozilla/5.0',
+        '127.0.0.1',
+      );
 
       expect(result).toHaveProperty('access_token');
       expect(result).toHaveProperty('refresh_token');
@@ -208,15 +226,27 @@ describe('AuthService', () => {
       mockAccountService.findSession.mockResolvedValue(null);
 
       await expect(
-        authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1'),
+        authService.refresh(
+          user as any,
+          storedToken,
+          'Mozilla/5.0',
+          '127.0.0.1',
+        ),
       ).rejects.toThrow(AppException);
     });
 
     it('토큰 불일치 시 AppException', async () => {
-      mockAccountService.findSession.mockResolvedValue({ refreshToken: 'different.token' });
+      mockAccountService.findSession.mockResolvedValue({
+        refreshToken: 'different.token',
+      });
 
       await expect(
-        authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1'),
+        authService.refresh(
+          user as any,
+          storedToken,
+          'Mozilla/5.0',
+          '127.0.0.1',
+        ),
       ).rejects.toThrow(AppException);
     });
 
@@ -233,13 +263,24 @@ describe('AuthService', () => {
     });
 
     it('IP 불일치 시 AppException + 세션 삭제', async () => {
-      mockAccountService.findSession.mockResolvedValue({ refreshToken: storedToken, ip: '192.168.1.1' });
+      mockAccountService.findSession.mockResolvedValue({
+        refreshToken: storedToken,
+        ip: '192.168.1.1',
+      });
 
       await expect(
-        authService.refresh(user as any, storedToken, 'Mozilla/5.0', '127.0.0.1'),
+        authService.refresh(
+          user as any,
+          storedToken,
+          'Mozilla/5.0',
+          '127.0.0.1',
+        ),
       ).rejects.toThrow(AppException);
 
-      expect(mockAccountService.deleteSession).toHaveBeenCalledWith(user, 'Mozilla/5.0');
+      expect(mockAccountService.deleteSession).toHaveBeenCalledWith(
+        user,
+        'Mozilla/5.0',
+      );
     });
   });
 
@@ -253,12 +294,17 @@ describe('AuthService', () => {
     it('정상 로그아웃 - 세션 삭제 호출', async () => {
       await authService.logout(user as any, undefined, 'Mozilla/5.0');
 
-      expect(mockAccountService.deleteSession).toHaveBeenCalledWith(user, 'Mozilla/5.0');
+      expect(mockAccountService.deleteSession).toHaveBeenCalledWith(
+        user,
+        'Mozilla/5.0',
+      );
     });
 
     it('access token 있으면 블랙리스트 등록', async () => {
       const fakeToken = 'Bearer mock.access.token';
-      mockJWTService.decode.mockReturnValue({ exp: Math.floor(Date.now() / 1000) + 3600 });
+      mockJWTService.decode.mockReturnValue({
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
 
       await authService.logout(user as any, fakeToken, 'Mozilla/5.0');
 
@@ -268,7 +314,9 @@ describe('AuthService', () => {
     it('UA 없으면 전체 세션 삭제', async () => {
       await authService.logout(user as any, undefined, undefined);
 
-      expect(mockAccountService.deleteAllUserSessions).toHaveBeenCalledWith(user);
+      expect(mockAccountService.deleteAllUserSessions).toHaveBeenCalledWith(
+        user,
+      );
     });
   });
 
@@ -281,9 +329,15 @@ describe('AuthService', () => {
 
     it('비밀번호 일치 시 유저 반환', async () => {
       const hashedPassword = await bcrypt.hash(userDto.password, 12);
-      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, password: hashedPassword });
+      mockUserService.findByEmail.mockResolvedValue({
+        ...createdUser,
+        password: hashedPassword,
+      });
 
-      const result = await authService.validateUser(userDto.email, userDto.password);
+      const result = await authService.validateUser(
+        userDto.email,
+        userDto.password,
+      );
 
       expect(result).not.toBeNull();
       expect(result?.email).toBe(userDto.email);
@@ -291,7 +345,10 @@ describe('AuthService', () => {
 
     it('성공 시 실패 횟수 초기화', async () => {
       const hashedPassword = await bcrypt.hash(userDto.password, 12);
-      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, password: hashedPassword });
+      mockUserService.findByEmail.mockResolvedValue({
+        ...createdUser,
+        password: hashedPassword,
+      });
 
       await authService.validateUser(userDto.email, userDto.password);
 
@@ -300,16 +357,25 @@ describe('AuthService', () => {
 
     it('비밀번호 불일치 시 null 반환', async () => {
       const hashedPassword = await bcrypt.hash('wrongpassword', 12);
-      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, password: hashedPassword });
+      mockUserService.findByEmail.mockResolvedValue({
+        ...createdUser,
+        password: hashedPassword,
+      });
 
-      const result = await authService.validateUser(userDto.email, userDto.password);
+      const result = await authService.validateUser(
+        userDto.email,
+        userDto.password,
+      );
 
       expect(result).toBeNull();
     });
 
     it('비밀번호 불일치 시 실패 횟수 증가', async () => {
       const hashedPassword = await bcrypt.hash('wrongpassword', 12);
-      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, password: hashedPassword });
+      mockUserService.findByEmail.mockResolvedValue({
+        ...createdUser,
+        password: hashedPassword,
+      });
 
       await authService.validateUser(userDto.email, userDto.password);
 
@@ -320,7 +386,10 @@ describe('AuthService', () => {
       mockAccountService.isAccountLocked.mockResolvedValue(true);
       mockUserService.findByEmail.mockResolvedValue(createdUser);
 
-      const result = await authService.validateUser(userDto.email, userDto.password);
+      const result = await authService.validateUser(
+        userDto.email,
+        userDto.password,
+      );
 
       expect(result).toBeNull();
     });
@@ -337,21 +406,33 @@ describe('AuthService', () => {
     it('유저 없을 시 null 반환', async () => {
       mockUserService.findByEmail.mockResolvedValue(null);
 
-      const result = await authService.validateUser(userDto.email, userDto.password);
+      const result = await authService.validateUser(
+        userDto.email,
+        userDto.password,
+      );
 
       expect(result).toBeNull();
     });
 
     it('밴된 유저 시 null 반환', async () => {
-      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, isBanned: true });
+      mockUserService.findByEmail.mockResolvedValue({
+        ...createdUser,
+        isBanned: true,
+      });
 
-      const result = await authService.validateUser(userDto.email, userDto.password);
+      const result = await authService.validateUser(
+        userDto.email,
+        userDto.password,
+      );
 
       expect(result).toBeNull();
     });
 
     it('밴된 유저 시 실패 횟수 증가 안 함', async () => {
-      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, isBanned: true });
+      mockUserService.findByEmail.mockResolvedValue({
+        ...createdUser,
+        isBanned: true,
+      });
 
       await authService.validateUser(userDto.email, userDto.password);
 
@@ -360,7 +441,10 @@ describe('AuthService', () => {
 
     it('비밀번호 불일치 시 failed 카운터 증가', async () => {
       const hashedPassword = await bcrypt.hash('wrongpassword', 12);
-      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, password: hashedPassword });
+      mockUserService.findByEmail.mockResolvedValue({
+        ...createdUser,
+        password: hashedPassword,
+      });
 
       await authService.validateUser(userDto.email, userDto.password);
 
@@ -388,7 +472,10 @@ describe('AuthService', () => {
     });
 
     it('밴된 유저 시 banned 카운터 증가', async () => {
-      mockUserService.findByEmail.mockResolvedValue({ ...createdUser, isBanned: true });
+      mockUserService.findByEmail.mockResolvedValue({
+        ...createdUser,
+        isBanned: true,
+      });
 
       await authService.validateUser(userDto.email, userDto.password);
 
@@ -406,7 +493,9 @@ describe('AuthService', () => {
     });
 
     it('정상 비밀번호 변경', async () => {
-      mockAccountService.getResetPasswordToken.mockResolvedValue('test@test.com');
+      mockAccountService.getResetPasswordToken.mockResolvedValue(
+        'test@test.com',
+      );
       mockUserService.findByEmail.mockResolvedValue(user);
       mockUserService.updateUserPassword.mockResolvedValue(1);
       mockAccountService.deleteResetPasswordToken.mockResolvedValue(undefined);
@@ -415,11 +504,15 @@ describe('AuthService', () => {
       await authService.confirmResetPassword(validToken, newPassword);
 
       expect(mockUserService.updateUserPassword).toHaveBeenCalled();
-      expect(mockAccountService.deleteResetPasswordToken).toHaveBeenCalledWith(validToken);
+      expect(mockAccountService.deleteResetPasswordToken).toHaveBeenCalledWith(
+        validToken,
+      );
     });
 
     it('비밀번호 변경 성공 시 전체 세션 삭제 호출', async () => {
-      mockAccountService.getResetPasswordToken.mockResolvedValue('test@test.com');
+      mockAccountService.getResetPasswordToken.mockResolvedValue(
+        'test@test.com',
+      );
       mockUserService.findByEmail.mockResolvedValue(user);
       mockUserService.updateUserPassword.mockResolvedValue(1);
       mockAccountService.deleteResetPasswordToken.mockResolvedValue(undefined);
@@ -427,14 +520,20 @@ describe('AuthService', () => {
 
       await authService.confirmResetPassword(validToken, newPassword);
 
-      expect(mockAccountService.deleteAllUserSessions).toHaveBeenCalledWith(user);
+      expect(mockAccountService.deleteAllUserSessions).toHaveBeenCalledWith(
+        user,
+      );
     });
 
     it('세션/토큰 정리 실패 시 InternalServerErrorException', async () => {
-      mockAccountService.getResetPasswordToken.mockResolvedValue('test@test.com');
+      mockAccountService.getResetPasswordToken.mockResolvedValue(
+        'test@test.com',
+      );
       mockUserService.findByEmail.mockResolvedValue(user);
       mockUserService.updateUserPassword.mockResolvedValue(1);
-      mockAccountService.deleteResetPasswordToken.mockRejectedValue(new Error('redis error'));
+      mockAccountService.deleteResetPasswordToken.mockRejectedValue(
+        new Error('redis error'),
+      );
 
       await expect(
         authService.confirmResetPassword(validToken, newPassword),
@@ -458,7 +557,9 @@ describe('AuthService', () => {
     });
 
     it('유저 없으면 AppException', async () => {
-      mockAccountService.getResetPasswordToken.mockResolvedValue('test@test.com');
+      mockAccountService.getResetPasswordToken.mockResolvedValue(
+        'test@test.com',
+      );
       mockUserService.findByEmail.mockResolvedValue(null);
 
       await expect(
@@ -480,7 +581,9 @@ describe('AuthService', () => {
     it('유저 없으면 AppException', async () => {
       mockUserService.findByUserId.mockResolvedValue(null);
 
-      await expect(authService.unlockUserAccount('admin-id', 'non-existent')).rejects.toThrow(AppException);
+      await expect(
+        authService.unlockUserAccount('admin-id', 'non-existent'),
+      ).rejects.toThrow(AppException);
     });
   });
 
@@ -488,16 +591,25 @@ describe('AuthService', () => {
     it('밴 처리 성공', async () => {
       mockUserService.updateUserBanStatus.mockResolvedValue(1);
 
-      const result = await authService.updateUserBanStatus('admin-id', user.id, true);
+      const result = await authService.updateUserBanStatus(
+        'admin-id',
+        user.id,
+        true,
+      );
 
-      expect(mockUserService.updateUserBanStatus).toHaveBeenCalledWith(user.id, true);
+      expect(mockUserService.updateUserBanStatus).toHaveBeenCalledWith(
+        user.id,
+        true,
+      );
       expect(result).toBe(1);
     });
 
     it('유저 없으면 AppException', async () => {
       mockUserService.updateUserBanStatus.mockResolvedValue(0);
 
-      await expect(authService.updateUserBanStatus('admin-id', 'non-existent', true)).rejects.toThrow(AppException);
+      await expect(
+        authService.updateUserBanStatus('admin-id', 'non-existent', true),
+      ).rejects.toThrow(AppException);
     });
   });
 });

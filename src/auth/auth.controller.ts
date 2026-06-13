@@ -1,31 +1,17 @@
 import {
-  Delete,
   Body,
   Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
   Post,
+  Put,
+  Query,
   Req,
   Res,
   UseGuards,
-  HttpCode,
-  Put,
-  Param,
-  Query,
-  Get,
 } from '@nestjs/common';
-import type { Response, Request } from 'express';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { AuthService } from './auth.service';
-import {
-  GoogleAuthGuard,
-  JwtAuthGuard,
-  LocalAuthGuard,
-  RefreshGuard,
-  RolesGuard,
-} from './auth.guard';
-import { CurrentUser } from './decorators/current-user.decorator';
-import { User, UserRole } from '../users/entities/user.entity';
-import { Throttle } from '@nestjs/throttler';
-import { Roles } from './decorators/roles.decorator';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -33,6 +19,20 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import type { Request, Response } from 'express';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { User, UserRole } from '../users/entities/user.entity';
+import {
+  GoogleAuthGuard,
+  JwtAuthGuard,
+  LocalAuthGuard,
+  RefreshGuard,
+  RolesGuard,
+} from './auth.guard';
+import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { Roles } from './decorators/roles.decorator';
 import { LoginUserDto } from './dto/login-user.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
@@ -41,7 +41,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 export class AuthController {
   private readonly refreshTokenKey = 'refresh_token';
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @ApiOperation({ summary: '회원가입' })
   @ApiResponse({ status: 201, description: '가입 성공' })
@@ -205,7 +205,7 @@ export class AuthController {
   // oauth ====================================================================
   @UseGuards(GoogleAuthGuard)
   @Get('google')
-  googleLogin() {}
+  googleLogin() { }
 
   @UseGuards(GoogleAuthGuard)
   @Get('google/callback')

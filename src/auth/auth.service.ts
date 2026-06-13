@@ -178,7 +178,7 @@ export class AuthService {
     try {
       if (accessToken) {
         const token = accessToken.split(' ')[1];
-        const payload = this.jwtService.decode(token) as { exp: number };
+        const payload = this.jwtService.decode(token);
         const remainingTime = payload.exp * 1000 - Date.now(); // ms
 
         await this.accountService.blacklistToken(token, remainingTime);

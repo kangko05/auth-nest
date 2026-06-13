@@ -96,14 +96,19 @@ describe('UsersService', () => {
 
       const result = await usersService.updateUserBanStatus(mockUser.id, true);
 
-      expect(mockUserRepository.update).toHaveBeenCalledWith(mockUser.id, { isBanned: true });
+      expect(mockUserRepository.update).toHaveBeenCalledWith(mockUser.id, {
+        isBanned: true,
+      });
       expect(result).toBe(1);
     });
 
     it('존재하지 않는 유저면 0 반환', async () => {
       mockUserRepository.update.mockResolvedValue({ affected: 0 });
 
-      const result = await usersService.updateUserBanStatus('non-existent-id', true);
+      const result = await usersService.updateUserBanStatus(
+        'non-existent-id',
+        true,
+      );
 
       expect(result).toBe(0);
     });

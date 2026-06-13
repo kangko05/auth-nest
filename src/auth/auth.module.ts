@@ -1,27 +1,28 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { ConfigService } from '@nestjs/config';
 
-import { UsersModule } from '../users/users.module';
+import {
+  makeCounterProvider,
+  makeGaugeProvider,
+} from '@willsoto/nestjs-prometheus';
 import { AccountModule } from '../account/account.module';
+import googleConfig from '../config/google.config';
+import { MailModule } from '../mail/mail.module';
+import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { LocalStrategy } from './strategy/local.strategy';
-import { JwtStrategy } from './strategy/jwt.strategy';
 import {
   GoogleAuthGuard,
   JwtAuthGuard,
   LocalAuthGuard,
   RefreshGuard,
 } from './auth.guard';
-import { RefreshStrategy } from './strategy/refresh.strategy';
+import { AuthService } from './auth.service';
 import { GoogleStrategy } from './strategy/google.strategy';
-import { MailModule } from '../mail/mail.module';
-import {
-  makeCounterProvider,
-  makeGaugeProvider,
-} from '@willsoto/nestjs-prometheus';
+import { JwtStrategy } from './strategy/jwt.strategy';
+import { LocalStrategy } from './strategy/local.strategy';
+import { RefreshStrategy } from './strategy/refresh.strategy';
 
 @Module({
   imports: [
@@ -48,7 +49,8 @@ import {
     RefreshStrategy,
     RefreshGuard,
     GoogleAuthGuard,
-    GoogleStrategy,
+    ...(googleConfig().enabled ? [GoogleStrategy] : []),
+
     makeCounterProvider({
       name: 'auth_login_total',
       help: '로그인 시도 횟수',
@@ -66,4 +68,4 @@ import {
   ],
   exports: [JwtAuthGuard],
 })
-export class AuthModule {}
+export class AuthModule { }

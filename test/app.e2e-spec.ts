@@ -428,6 +428,13 @@ describe('PasswordReset (e2e)', () => {
     await app.close();
   });
 
+  it('POST /auth/password-reset/request - 메일 미설정 시에도 201', () => {
+    return request(app.getHttpServer())
+      .post('/auth/password-reset/request')
+      .send({ email: dto.email })
+      .expect(201);
+  });
+
   it('비밀번호 재설정 후 기존 access token 401', async () => {
     const loginRes = await request(app.getHttpServer())
       .post('/auth/login')

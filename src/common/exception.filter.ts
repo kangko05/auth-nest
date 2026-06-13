@@ -1,12 +1,17 @@
 import {
+  ArgumentsHost,
   Catch,
   ExceptionFilter,
   HttpException,
-  ArgumentsHost,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
 export const ErrorCode = {
+  FEATURE_NOT_CONFIGURED: {
+    code: 'FEATURE_NOT_CONFIGURED',
+    status: 503,
+    message: '현재 설정되지 않은 기능입니다.',
+  },
   ACCOUNT_LOCKED: {
     code: 'ACCOUNT_LOCKED',
     status: 401,
