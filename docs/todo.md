@@ -45,7 +45,7 @@
 
 - [ ] 배포 환경 명세 작성 — 포트, 컨테이너 구성, 환경별 설정 차이 (`tech-spec.md`에 추가)
 - [ ] 앱 서버 Dockerfile 작성
-- [ ] docker-compose 구성 — 앱 서버 + MySQL + Redis + Prometheus + Grafana
+- [x] docker-compose 구성 — MySQL + Redis (앱 서버 + Prometheus + Grafana는 별도 작업 필요)
 
 ## 운영 (기능 마무리 후)
 
