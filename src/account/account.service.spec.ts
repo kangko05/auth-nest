@@ -95,7 +95,13 @@ describe('AccountService', () => {
 
   describe('findSession', () => {
     it('세션 있으면 파싱해서 반환', async () => {
-      const session = { userId: user.id, refreshToken, userAgent, ip: userIp, createdAt: Date.now() };
+      const session = {
+        userId: user.id,
+        refreshToken,
+        userAgent,
+        ip: userIp,
+        createdAt: Date.now(),
+      };
       mockRedisClient.get.mockResolvedValue(JSON.stringify(session));
 
       const result = await accountService.findSession(user, userAgent);
@@ -133,13 +139,18 @@ describe('AccountService', () => {
     });
 
     it('유저의 모든 세션 키 삭제', async () => {
-      const keys = [getSessionId(user.id, 'agent1'), getSessionId(user.id, 'agent2')];
+      const keys = [
+        getSessionId(user.id, 'agent1'),
+        getSessionId(user.id, 'agent2'),
+      ];
       mockRedisClient.scanStream.mockReturnValue(makeAsyncIterable([keys]));
       mockRedisClient.del.mockResolvedValue(2);
 
       await accountService.deleteAllUserSessions(user);
 
-      expect(mockRedisClient.scanStream).toHaveBeenCalledWith({ match: `${user.id}:*` });
+      expect(mockRedisClient.scanStream).toHaveBeenCalledWith({
+        match: `${user.id}:*`,
+      });
       expect(mockRedisClient.del).toHaveBeenCalledWith(...keys);
     });
 
@@ -213,7 +224,10 @@ describe('AccountService', () => {
 
       await accountService.incrementAccFailCount(user);
 
-      expect(mockRedisClient.expire).toHaveBeenCalledWith(`login:fail:${user.id}`, 600);
+      expect(mockRedisClient.expire).toHaveBeenCalledWith(
+        `login:fail:${user.id}`,
+        600,
+      );
     });
 
     it('첫 번째 실패가 아니면 TTL 설정 안 함', async () => {

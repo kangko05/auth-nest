@@ -26,7 +26,10 @@ describe('RedisHealthIndicator', () => {
     const module = await Test.createTestingModule({
       providers: [
         RedisHealthIndicator,
-        { provide: HealthIndicatorService, useValue: mockHealthIndicatorService },
+        {
+          provide: HealthIndicatorService,
+          useValue: mockHealthIndicatorService,
+        },
         { provide: REDIS_CLIENT, useValue: mockRedisClient },
       ],
     }).compile();
@@ -50,6 +53,8 @@ describe('RedisHealthIndicator', () => {
     const result = await indicator.pingCheck('redis');
 
     expect(result).toBe(downResult);
-    expect(mockIndicator.down).toHaveBeenCalledWith({ message: 'connection refused' });
+    expect(mockIndicator.down).toHaveBeenCalledWith({
+      message: 'connection refused',
+    });
   });
 });
