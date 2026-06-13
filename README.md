@@ -36,7 +36,10 @@ npm run start:dev
 
 ```bash
 npm test          # 단위 테스트
-npm run test:e2e  # e2e 테스트
+
+# e2e: docker compose로 MySQL/Redis 기동 후 실행
+docker compose --env-file .env.test up -d
+npm run test:e2e
 ```
 
 **환경변수** (`.env.test` 기준)
