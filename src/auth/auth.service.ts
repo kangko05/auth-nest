@@ -1,4 +1,3 @@
-import * as bcrypt from 'bcrypt';
 import {
   BadRequestException,
   Inject,
@@ -7,19 +6,20 @@ import {
   UnauthorizedException,
   type LoggerService,
 } from '@nestjs/common';
-import { randomUUID, randomBytes } from 'crypto';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { UsersService } from '../users/users.service';
-import { UserCreatedDto } from '../users/dto/user-response.dto';
-import { JwtService } from '@nestjs/jwt';
-import { User } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
-import { AccountService } from '../account/account.service';
+import { JwtService } from '@nestjs/jwt';
+import { InjectMetric } from '@willsoto/nestjs-prometheus';
+import * as bcrypt from 'bcrypt';
+import { randomBytes, randomUUID } from 'crypto';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { Counter, Gauge } from 'prom-client';
+import { AccountService } from '../account/account.service';
 import { AppException, ErrorCode } from '../common/exception.filter';
 import { MailService } from '../mail/mail.service';
-import { InjectMetric } from '@willsoto/nestjs-prometheus';
-import { Gauge, Counter } from 'prom-client';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { UserCreatedDto } from '../users/dto/user-response.dto';
+import { User } from '../users/entities/user.entity';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
@@ -38,7 +38,7 @@ export class AuthService {
     private registerCounter: Counter<string>,
     @InjectMetric('auth_active_sessions_total')
     private activeSessions: Gauge<string>,
-  ) {}
+  ) { }
 
   async register(registerDto: CreateUserDto): Promise<UserCreatedDto> {
     const foundUser = await this.userService.findByEmail(registerDto.email);

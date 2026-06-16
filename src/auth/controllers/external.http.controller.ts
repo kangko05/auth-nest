@@ -21,20 +21,20 @@ import {
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { User, UserRole } from '../users/entities/user.entity';
+import { CreateUserDto } from '../../users/dto/create-user.dto';
+import { User, UserRole } from '../../users/entities/user.entity';
 import {
   GoogleAuthGuard,
   JwtAuthGuard,
   LocalAuthGuard,
   RefreshGuard,
   RolesGuard,
-} from './auth.guard';
-import { AuthService } from './auth.service';
-import { CurrentUser } from './decorators/current-user.decorator';
-import { Roles } from './decorators/roles.decorator';
-import { LoginUserDto } from './dto/login-user.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
+} from '../auth.guard';
+import { AuthService } from '../auth.service';
+import { CurrentUser } from '../decorators/current-user.decorator';
+import { Roles } from '../decorators/roles.decorator';
+import { LoginUserDto } from '../dto/login-user.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -122,7 +122,6 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     res.clearCookie(this.refreshTokenKey);
-
     await this.authService.logout(
       user,
       req.headers.authorization,

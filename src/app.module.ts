@@ -1,24 +1,25 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from './config/config.module';
-import { UsersModule } from './users/users.module';
-import { AuthModule } from './auth/auth.module';
-import { DatabaseModule } from './database/database.module';
-import { AppController } from './app.controller';
-import { RedisModule } from './redis/redis.module';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 import { WinstonModule } from 'nest-winston';
 import winston from 'winston';
-import { LoggingInterceptor } from './common/logging.interceptor';
+import { AppController } from './app.controller';
+import { AuthModule } from './auth/auth.module';
 import { HttpExceptionFilter } from './common/exception.filter';
+import { LoggingInterceptor } from './common/logging.interceptor';
+import { ConfigModule } from './config/config.module';
+import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
-import { PrometheusModule } from '@willsoto/nestjs-prometheus';
+import { RedisModule } from './redis/redis.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
     ConfigModule,
+
     WinstonModule.forRoot({
       transports: [
         new winston.transports.Console({
@@ -43,13 +44,14 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
     }),
     DatabaseModule,
     UsersModule,
-    AuthModule,
     RedisModule,
     HealthModule,
     MailModule,
     PrometheusModule.register({
       defaultMetrics: { enabled: true },
     }),
+
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [
@@ -58,4 +60,4 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
   ],
 })
-export class AppModule {}
+export class AppModule { }
