@@ -7,6 +7,11 @@ import {
 import { Request, Response } from 'express';
 
 export const ErrorCode = {
+  BANNED_USER: {
+    code: 'BANNED_USER',
+    status: 401,
+    message: '제한된 사용자입니다.'
+  },
   FEATURE_NOT_CONFIGURED: {
     code: 'FEATURE_NOT_CONFIGURED',
     status: 503,

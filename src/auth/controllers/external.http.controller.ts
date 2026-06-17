@@ -21,20 +21,20 @@ import {
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { User, UserRole } from '../users/entities/user.entity';
+import { CreateUserDto } from '../../users/dto/create-user.dto';
+import { User, UserRole } from '../../users/entities/user.entity';
 import {
   GoogleAuthGuard,
   JwtAuthGuard,
   LocalAuthGuard,
   RefreshGuard,
   RolesGuard,
-} from './auth.guard';
-import { AuthService } from './auth.service';
-import { CurrentUser } from './decorators/current-user.decorator';
-import { Roles } from './decorators/roles.decorator';
-import { LoginUserDto } from './dto/login-user.dto';
-import { ConfirmPasswordDto, ResetPasswordDto } from './dto/reset-password.dto';
+} from '../auth.guard';
+import { AuthService } from '../auth.service';
+import { CurrentUser } from '../decorators/current-user.decorator';
+import { Roles } from '../decorators/roles.decorator';
+import { LoginUserDto } from '../dto/login-user.dto';
+import { ConfirmPasswordDto, ResetPasswordDto } from '../dto/reset-password.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -122,7 +122,6 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     res.clearCookie(this.refreshTokenKey);
-
     await this.authService.logout(
       user,
       req.headers.authorization,
@@ -139,7 +138,6 @@ export class AuthController {
 
   @Get('/password-reset/confirm')
   async getResetPassword(@Query('token') token: string, @Res() res: Response) {
-
     const escapedToken = token
       .replace(/&/g, '&amp;')
       .replace(/"/g, '&quot;')
@@ -165,8 +163,8 @@ export class AuthController {
     @Body() body: ConfirmPasswordDto,
     @Res() res: Response,
   ) {
-    await this.authService.confirmResetPassword(body.token, body.password); // body.password -> new password
-    res.send(`<html><body><p>비밀번호가 재설정되었습니다.</p></body></html>`);
+    await this.authService.confirmResetPassword(body.token, body.password);
+    res.status(201).send(`<html><body><p>비밀번호가 재설정되었습니다.</p></body></html>`);
   }
 
   // admin routes ==============================================================
@@ -237,4 +235,5 @@ export class AuthController {
 
     return { access_token };
   }
+
 }

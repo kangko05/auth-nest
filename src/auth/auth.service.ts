@@ -1,4 +1,3 @@
-import * as bcrypt from 'bcrypt';
 import {
   BadRequestException,
   Inject,
@@ -7,19 +6,20 @@ import {
   UnauthorizedException,
   type LoggerService,
 } from '@nestjs/common';
-import { randomUUID, randomBytes } from 'crypto';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { UsersService } from '../users/users.service';
-import { UserCreatedDto } from '../users/dto/user-response.dto';
-import { JwtService } from '@nestjs/jwt';
-import { User } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
-import { AccountService } from '../account/account.service';
+import { JwtService } from '@nestjs/jwt';
+import { InjectMetric } from '@willsoto/nestjs-prometheus';
+import * as bcrypt from 'bcrypt';
+import { randomBytes, randomUUID } from 'crypto';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { Counter, Gauge } from 'prom-client';
+import { AccountService } from '../account/account.service';
 import { AppException, ErrorCode } from '../common/exception.filter';
 import { MailService } from '../mail/mail.service';
-import { InjectMetric } from '@willsoto/nestjs-prometheus';
-import { Gauge, Counter } from 'prom-client';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { UserCreatedDto } from '../users/dto/user-response.dto';
+import { User } from '../users/entities/user.entity';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
@@ -38,7 +38,7 @@ export class AuthService {
     private registerCounter: Counter<string>,
     @InjectMetric('auth_active_sessions_total')
     private activeSessions: Gauge<string>,
-  ) {}
+  ) { }
 
   async register(registerDto: CreateUserDto): Promise<UserCreatedDto> {
     const foundUser = await this.userService.findByEmail(registerDto.email);
@@ -70,6 +70,7 @@ export class AuthService {
       if (accountLocked) {
         this.loginCounter.inc({ status: 'locked' });
         this.logger.warn(`login attempt on locked account: ${email}`);
+
         return null;
       }
 
@@ -95,6 +96,8 @@ export class AuthService {
 
       await this.accountService.resetAccFailCount(foundUser);
     } else {
+      // 유저 없어도 더미 해시에 비교 함수 돌림 - 보안상 유저가 있던 없던 실행 시간 비슷하게 맞추기 위함
+      await bcrypt.compare(password, '$2b$12$dummyhashfortimingprotection000');
       this.loginCounter.inc({ status: 'failed' });
     }
 
@@ -179,7 +182,9 @@ export class AuthService {
       if (accessToken) {
         const token = accessToken.split(' ')[1];
         const payload = this.jwtService.decode(token);
-        const remainingTime = payload.exp * 1000 - Date.now(); // ms
+        let remainingTime = payload.exp * 1000 - Date.now(); // ms
+
+        if (remainingTime < 0) remainingTime = 0;
 
         await this.accountService.blacklistToken(token, remainingTime);
       }

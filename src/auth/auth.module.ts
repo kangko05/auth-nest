@@ -1,17 +1,16 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 
+import { ConfigService } from '@nestjs/config';
 import {
   makeCounterProvider,
   makeGaugeProvider,
 } from '@willsoto/nestjs-prometheus';
 import { AccountModule } from '../account/account.module';
-import googleConfig from '../config/google.config';
 import { MailModule } from '../mail/mail.module';
 import { UsersModule } from '../users/users.module';
-import { AuthController } from './auth.controller';
+import { UsersService } from '../users/users.service';
 import {
   GoogleAuthGuard,
   JwtAuthGuard,
@@ -19,6 +18,8 @@ import {
   RefreshGuard,
 } from './auth.guard';
 import { AuthService } from './auth.service';
+import { AuthController } from './controllers/external.http.controller';
+import { InternalHttpController } from './controllers/internal.http.controller';
 import { GoogleStrategy } from './strategy/google.strategy';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { LocalStrategy } from './strategy/local.strategy';
@@ -39,7 +40,7 @@ import { RefreshStrategy } from './strategy/refresh.strategy';
     AccountModule,
     MailModule,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, InternalHttpController],
   providers: [
     AuthService,
     LocalStrategy,
@@ -49,7 +50,13 @@ import { RefreshStrategy } from './strategy/refresh.strategy';
     RefreshStrategy,
     RefreshGuard,
     GoogleAuthGuard,
-    ...(googleConfig().enabled ? [GoogleStrategy] : []),
+    {
+      provide: GoogleStrategy,
+      inject: [ConfigService, UsersService],
+      useFactory: (configService: ConfigService, userService: UsersService) => {
+        return configService.get("google.enabled") ? new GoogleStrategy(configService, userService) : null;
+      },
+    },
 
     makeCounterProvider({
       name: 'auth_login_total',
