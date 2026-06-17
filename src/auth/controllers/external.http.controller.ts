@@ -34,7 +34,7 @@ import { AuthService } from '../auth.service';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { Roles } from '../decorators/roles.decorator';
 import { LoginUserDto } from '../dto/login-user.dto';
-import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { ConfirmPasswordDto, ResetPasswordDto } from '../dto/reset-password.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -132,17 +132,23 @@ export class AuthController {
   @ApiOperation({ summary: '비밀번호 재설정' })
   @ApiBody({ type: ResetPasswordDto })
   @Post('/password-reset/request')
-  async resetPassword(@Body() body: { email: string }) {
+  async resetPassword(@Body() body: ResetPasswordDto) {
     await this.authService.resetPassword(body.email);
   }
 
   @Get('/password-reset/confirm')
   async getResetPassword(@Query('token') token: string, @Res() res: Response) {
+    const escapedToken = token
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
     res.send(`
 <html>
     <body>
       <form action="/auth/password-reset/confirm" method="POST">
-        <input type="hidden" name="token" value="${token}" />
+        <input type="hidden" name="token" value="${escapedToken}" />
         <label>새 비밀번호</label>
         <input type="password" name="newPassword" required />
         <button type="submit">변경</button>
@@ -154,11 +160,11 @@ export class AuthController {
 
   @Post('/password-reset/confirm')
   async confirmResetPassword(
-    @Body() body: { token: string; newPassword: string },
+    @Body() body: ConfirmPasswordDto,
     @Res() res: Response,
   ) {
-    await this.authService.confirmResetPassword(body.token, body.newPassword);
-    res.send(`<html><body><p>비밀번호가 재설정되었습니다.</p></body></html>`);
+    await this.authService.confirmResetPassword(body.token, body.password);
+    res.status(201).send(`<html><body><p>비밀번호가 재설정되었습니다.</p></body></html>`);
   }
 
   // admin routes ==============================================================

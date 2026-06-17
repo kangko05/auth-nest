@@ -1,14 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
-import { CreateOauthUserDto, CreateUserDto } from './dto/create-user.dto';
 import { USER_REPOSITORY } from './constants';
+import { CreateOauthUserDto, CreateUserDto } from './dto/create-user.dto';
+import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @Inject(USER_REPOSITORY) private userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email } });
@@ -29,23 +29,9 @@ export class UsersService {
   }
 
   async createOrUpdateOauthUser(dto: CreateOauthUserDto) {
-    const existing = await this.findByEmail(dto.email);
+    await this.userRepository.upsert({ ...dto }, ['email']);
 
-    if (existing) {
-      await this.userRepository.update(existing.id, {
-        ...existing,
-        provider: dto.provider,
-        providerId: dto.providerId,
-      });
-
-      return {
-        ...existing,
-        provider: dto.provider,
-        providerId: dto.providerId,
-      };
-    }
-
-    return this.create(dto);
+    return this.findByEmail(dto.email);
   }
 
   async updateUserPassword(

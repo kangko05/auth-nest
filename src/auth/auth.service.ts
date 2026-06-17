@@ -70,6 +70,7 @@ export class AuthService {
       if (accountLocked) {
         this.loginCounter.inc({ status: 'locked' });
         this.logger.warn(`login attempt on locked account: ${email}`);
+
         return null;
       }
 
@@ -95,6 +96,8 @@ export class AuthService {
 
       await this.accountService.resetAccFailCount(foundUser);
     } else {
+      // 유저 없어도 더미 해시에 비교 함수 돌림 - 보안상 유저가 있던 없던 실행 시간 비슷하게 맞추기 위함
+      await bcrypt.compare(password, '$2b$12$dummyhashfortimingprotection000');
       this.loginCounter.inc({ status: 'failed' });
     }
 
@@ -179,7 +182,9 @@ export class AuthService {
       if (accessToken) {
         const token = accessToken.split(' ')[1];
         const payload = this.jwtService.decode(token);
-        const remainingTime = payload.exp * 1000 - Date.now(); // ms
+        let remainingTime = payload.exp * 1000 - Date.now(); // ms
+
+        if (remainingTime < 0) remainingTime = 0;
 
         await this.accountService.blacklistToken(token, remainingTime);
       }

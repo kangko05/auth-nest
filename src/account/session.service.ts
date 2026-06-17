@@ -1,7 +1,7 @@
-import Redis from 'ioredis';
-import { User } from '../users/entities/user.entity';
 import { createHash } from 'crypto';
+import Redis from 'ioredis';
 import ms from 'ms';
+import { User } from '../users/entities/user.entity';
 
 export interface Session {
   userId: string;
@@ -40,6 +40,7 @@ export class SessionService {
       'PX',
       this.refreshExpiresIn,
     );
+
   }
 
   async findSession(user: User, userAgent: string): Promise<Session | null> {

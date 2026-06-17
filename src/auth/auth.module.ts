@@ -8,9 +8,9 @@ import {
   makeGaugeProvider,
 } from '@willsoto/nestjs-prometheus';
 import { AccountModule } from '../account/account.module';
-import googleConfig from '../config/google.config';
 import { MailModule } from '../mail/mail.module';
 import { UsersModule } from '../users/users.module';
+import { UsersService } from '../users/users.service';
 import {
   GoogleAuthGuard,
   JwtAuthGuard,
@@ -50,7 +50,13 @@ import { RefreshStrategy } from './strategy/refresh.strategy';
     RefreshStrategy,
     RefreshGuard,
     GoogleAuthGuard,
-    ...(googleConfig().enabled ? [GoogleStrategy] : []),
+    {
+      provide: GoogleStrategy,
+      inject: [ConfigService, UsersService],
+      useFactory: (configService: ConfigService, userService: UsersService) => {
+        return configService.get("google.enabled") ? new GoogleStrategy(configService, userService) : null;
+      },
+    },
 
     makeCounterProvider({
       name: 'auth_login_total',
