@@ -1,0 +1,50 @@
+# test-only setup — data wiped on every `down`+`up`.
+# run: docker compose --env-file .env.test up
+
+services:
+  auth_nest_mysql:
+    image: mysql:lts
+    container_name: mysql_test
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+    ports:
+      - ${DB_PORT}:3306
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth_nest_redis:
+    image: redis:7-alpine
+    container_name: redis_test
+    ports:
+      - ${REDIS_PORT}:6379
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 서버 구동까지 필요하면 아래 주석 해제
+  # auth_nest_server:
+  #   env_file: .env.test
+  #   build: .
+  #   container_name: auth_nest_test
+  #   environment:
+  #     NODE_ENV: test
+  #     DB_HOST: mysql_test
+  #     REDIS_HOST: redis_test
+  #   ports:
+  #     - 3000:3000
+  #   restart: always
+  #   depends_on:
+  #     auth_nest_mysql:
+  #       condition: service_healthy
+  #     auth_nest_redis:
+  #       condition: service_healthy
